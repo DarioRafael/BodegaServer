@@ -3,9 +3,8 @@ const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-
-
 const app = express();
+
 
 // Check for required environment variables
 const requiredEnvVars = ['PORT', 'DB_USER', 'DB_PASSWORD', 'DB_SERVER', 'DB_DATABASE'];
