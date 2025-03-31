@@ -4,6 +4,7 @@ const sql = require('mssql');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 
+
 const app = express();
 
 // Check for required environment variables
@@ -214,8 +215,44 @@ app.get('/api/v1/keepalive', (req, res) => {
     res.status(200).send('Server is alive!');
 });
 
+app.get('/api/v1/inventarioBodega', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query(`
+                SELECT 
+                    M.ID,
+                    M.NombreGenerico,
+                    M.NombreMedico,
+                    M.Fabricante,
+                    M.Contenido,
+                    M.FormaFarmaceutica,
+                    M.FechaFabricacion,
+                    M.Presentacion,
+                    M.FechaCaducidad,
+                    M.UnidadesPorCaja,
+                    M.Stock,
+                    M.Precio
+                FROM medicamentosBodega  M;
+            `);
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener medicamentos:', err);
+        res.status(500).send('Error del servidor al obtener medicamentos');
+    }
+});
+
+
+
+
+
+
+
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
+
+
 
 module.exports = app;
