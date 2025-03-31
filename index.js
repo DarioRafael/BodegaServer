@@ -209,20 +209,20 @@ app.get('/api/v1/inventarioBodega', async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .query(`
-                SELECT 
+                SELECT
                     M.ID,
                     M.NombreGenerico,
                     M.NombreMedico,
                     M.Fabricante,
                     M.Contenido,
                     M.FormaFarmaceutica,
-                    M.FechaFabricacion,
+                    FORMAT(M.FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion,
                     M.Presentacion,
-                    M.FechaCaducidad,
+                    FORMAT(M.FechaCaducidad, 'yyyy-MM-dd') AS FechaCaducidad,
                     M.UnidadesPorCaja,
                     M.Stock,
                     M.Precio
-                FROM medicamentosBodega  M;
+                FROM medicamentosBodega M;
             `);
 
         res.status(200).json(result.recordset);
