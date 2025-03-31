@@ -2,20 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
 const app = express();
-
-
-// Check for required environment variables
-const requiredEnvVars = ['PORT', 'DB_USER', 'DB_PASSWORD', 'DB_SERVER', 'DB_DATABASE'];
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-
-if (missingEnvVars.length > 0) {
-    console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
-    process.exit(1);
-}
-
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
+const bcrypt = require('bcrypt');
+const axios = require('axios');
 
 const config = {
     user: process.env.DB_USER,
