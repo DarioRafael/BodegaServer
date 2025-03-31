@@ -31,7 +31,7 @@ const config = {
 
 const allowedOrigins = [
     //'https://farmacia-app-two.vercel.app',  // <-- Sin la barra final
-    ///^http:\/\/localhost:\d+$/
+    /^http:\/\/localhost:\d+$/
 ];
 
 app.use(cors({
