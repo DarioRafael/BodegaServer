@@ -234,7 +234,38 @@ app.get('/api/v1/inventarioBodega', async (req, res) => {
 
 
 
+app.get('/api/v1/inventarioBodega/bajoStock', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query(`
+                SELECT
+                    M.ID,
+                    M.NombreGenerico,
+                    M.NombreMedico,
+                    M.Fabricante,
+                    M.Contenido,
+                    M.FormaFarmaceutica,
+                    FORMAT(M.FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion,
+                    M.Presentacion,
+                    FORMAT(M.FechaCaducidad, 'yyyy-MM-dd') AS FechaCaducidad,
+                    M.UnidadesPorCaja,
+                    M.Stock,
+                    M.Precio
+                FROM medicamentosBodega M
+                WHERE M.Stock < 50
+                ORDER BY M.Stock ASC;
+            `);
 
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener medicamentos con stock bajo:', err);
+        res.status(500).json({
+            error: 'Error del servidor al obtener medicamentos con stock bajo',
+            details: err.message
+        });
+    }
+});
 
 
 
