@@ -327,7 +327,7 @@ app.put('/api/v1/medicamentos-bodega/:id/reabastecer', async (req, res) => {
             .input('IDMedicamento', sql.Int, id)
             .input('Stock', sql.Int, cantidad)
             .query(`
-                UPDATE MedicamentosBodega
+                UPDATE medicamentosBodega
                 SET Stock = Stock + @Stock
                 WHERE IDMedicamento = @IDMedicamento
             `);
@@ -344,7 +344,7 @@ app.get('/api/v1/medicamentos-bodega', async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request().query(`
             SELECT IDMedicamento, Nombre, Stock, FORMAT(FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion
-            FROM MedicamentosBodega
+            FROM medicamentosBodega
         `);
 
         res.status(200).json(result.recordset);
