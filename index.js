@@ -339,6 +339,41 @@ app.put('/api/v1/medicamentos-bodega/:id/reabastecer', async (req, res) => {
     }
 });
 
+app.put('/api/v1/medicamentos-bodega/reabastecer-multiple', async (req, res) => {
+    const productos = req.body; // Se espera un array de objetos { id, cantidad }
+
+    if (!Array.isArray(productos) || productos.length === 0) {
+        return res.status(400).json({ mensaje: 'Debe proporcionar una lista válida de productos para reabastecer' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        for (const producto of productos) {
+            const { id, cantidad } = producto;
+
+            if (!id || cantidad <= 0) {
+                console.warn(`ID inválido o cantidad incorrecta para el producto:`, producto);
+                continue; // Saltar este producto y seguir con el siguiente
+            }
+
+            await pool.request()
+                .input('ID', sql.Int, id)
+                .input('Stock', sql.Int, cantidad)
+                .query(`
+                    UPDATE medicamentosBodega
+                    SET Stock = Stock + @Stock
+                    WHERE ID = @ID
+                `);
+        }
+
+        res.status(200).json({ mensaje: 'Medicamentos reabastecidos correctamente' });
+    } catch (err) {
+        console.error('Error al reabastecer los medicamentos:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al reabastecer los medicamentos' });
+    }
+});
+
 
 app.get('/api/v1/medicamentos-bodega', async (req, res) => {
     try {
