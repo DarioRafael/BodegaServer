@@ -410,6 +410,7 @@ app.get('/api/v1/saldo-bodega', async (req, res) => {
 app.post('/api/v1/transacciones-bodega', async (req, res) => {
     const { descripcion, monto, tipo } = req.body;
 
+    // Validación de los datos de entrada
     if (!descripcion || !monto || !tipo || (tipo.toLowerCase() !== 'ingreso' && tipo.toLowerCase() !== 'egreso')) {
         return res.status(400).json({ mensaje: 'Debe proporcionar una descripción, monto y tipo válido ("ingreso" o "egreso")' });
     }
@@ -417,47 +418,42 @@ app.post('/api/v1/transacciones-bodega', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Obtener ID para la nueva transacción
-        const idResult = await pool.request()
-            .query('SELECT ISNULL(MAX(id), 0) + 1 AS nextId FROM MovimientosBodega');
-        const nextId = idResult.recordset[0].nextId;
-
-        // Insertar la transacción
+        // Insertar la transacción (sin especificar el ID, ya que debería ser autogenerado)
         await pool.request()
-            .input('id', sql.Int, nextId)
             .input('descripcion', sql.VarChar(255), descripcion)
             .input('monto', sql.Decimal(10, 2), monto)
             .input('tipo', sql.VarChar(50), tipo)
-            .query(`
-                INSERT INTO MovimientosBodega (id, descripcion, monto, tipo, fecha)
-                VALUES (@ID, @descripcion, @monto, @tipo, GETDATE())
-            `);
+            .query(
+                `INSERT INTO MovimientosBodega (descripcion, monto, tipo, fecha)
+                 VALUES (@descripcion, @monto, @tipo, GETDATE())`
+            );
 
-        // Actualizar saldo
+        // Actualizar saldo (ingresos o egresos)
         if (tipo.toLowerCase() === 'ingreso') {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
-                .query(`
-                    UPDATE SaldoBodega
-                    SET saldo = saldo + @Monto, ingresos = ingresos + @Monto
-                    WHERE id = 1
-                `);
+                .query(
+                    `UPDATE SaldoBodega
+                     SET saldo = saldo + @Monto, ingresos = ingresos + @Monto
+                     WHERE id = 1`
+                );
         } else {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
-                .query(`
-                    UPDATE SaldoBodega
-                    SET saldo = saldo - @Monto, egresos = egresos + @Monto
-                    WHERE ID = 1
-                `);
+                .query(
+                    `UPDATE SaldoBodega
+                     SET saldo = saldo - @Monto, egresos = egresos + @Monto
+                     WHERE id = 1`
+                );
         }
 
-        res.status(201).json({ mensaje: 'Transacción registrada correctamente', ID: nextId });
+        res.status(201).json({ mensaje: 'Transacción registrada correctamente' });
     } catch (err) {
         console.error('Error al registrar transacción:', err);
         res.status(500).json({ mensaje: 'Error del servidor al registrar transacción' });
     }
 });
+
 
 app.get('/api/v1/movimientosGet', async (req, res) => {
     try {
