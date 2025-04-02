@@ -324,12 +324,12 @@ app.put('/api/v1/medicamentos-bodega/:id/reabastecer', async (req, res) => {
         const pool = await sql.connect(config);
 
         await pool.request()
-            .input('IDMedicamento', sql.Int, id)
+            .input('ID', sql.Int, id) // Asegúrate de que 'ID' es el nombre correcto de la columna
             .input('Stock', sql.Int, cantidad)
             .query(`
                 UPDATE medicamentosBodega
                 SET Stock = Stock + @Stock
-                WHERE IDMedicamento = @IDMedicamento
+                WHERE ID = @ID
             `);
 
         res.status(200).json({ mensaje: 'Medicamento reabastecido correctamente' });
@@ -338,6 +338,7 @@ app.put('/api/v1/medicamentos-bodega/:id/reabastecer', async (req, res) => {
         res.status(500).json({ mensaje: 'Error del servidor al reabastecer el medicamento' });
     }
 });
+
 
 app.get('/api/v1/medicamentos-bodega', async (req, res) => {
     try {
