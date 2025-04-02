@@ -232,8 +232,6 @@ app.get('/api/v1/inventarioBodega', async (req, res) => {
     }
 });
 
-
-
 app.get('/api/v1/inventarioBodega/bajoStock', async (req, res) => {
     try {
         const pool = await sql.connect(config);
@@ -267,6 +265,163 @@ app.get('/api/v1/inventarioBodega/bajoStock', async (req, res) => {
     }
 });
 
+
+app.post('/api/v1/ventas-bodega', async (req, res) => {
+    const { detalles } = req.body; // detalles es un array con { IDMedicamento, Stock, PrecioUnitario, PrecioSubtotal }
+
+    if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
+        return res.status(400).json({ mensaje: 'Debe incluir al menos un medicamento en la venta' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Crear la venta y obtener el ID generado
+        const ventaResult = await pool.request()
+            .query('INSERT INTO VentasBodega (FechaVenta) OUTPUT INSERTED.IDVenta VALUES (GETDATE())');
+
+        const IDVenta = ventaResult.recordset[0].IDVenta;
+
+        for (const item of detalles) {
+            await pool.request()
+                .input('IDVenta', sql.Int, IDVenta)
+                .input('IDMedicamento', sql.Int, item.IDMedicamento)
+                .input('Stock', sql.Int, item.Stock)
+                .input('PrecioUnitario', sql.Decimal(10, 2), item.PrecioUnitario)
+                .input('PrecioSubtotal', sql.Decimal(10, 2), item.PrecioSubtotal)
+                .query(`
+                    INSERT INTO DetallesVentaBodega (IDVenta, IDMedicamento, Stock, PrecioUnitario, PrecioSubtotal)
+                    VALUES (@IDVenta, @IDMedicamento, @Stock, @PrecioUnitario, @PrecioSubtotal)
+                `);
+
+            // Reducir el stock del medicamento
+            await pool.request()
+                .input('IDMedicamento', sql.Int, item.IDMedicamento)
+                .input('Stock', sql.Int, item.Stock)
+                .query(`
+                    UPDATE MedicamentosBodega
+                    SET Stock = Stock - @Stock
+                    WHERE IDMedicamento = @IDMedicamento
+                `);
+        }
+
+        res.status(201).json({ mensaje: 'Venta registrada correctamente', IDVenta });
+    } catch (err) {
+        console.error('Error al registrar la venta:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al registrar la venta' });
+    }
+});
+
+app.put('/api/v1/medicamentos-bodega/:id/reabastecer', async (req, res) => {
+    const { id } = req.params;
+    const { cantidad } = req.body;
+
+    if (!cantidad || cantidad <= 0) {
+        return res.status(400).json({ mensaje: 'Debe proporcionar una cantidad válida para reabastecer' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        await pool.request()
+            .input('IDMedicamento', sql.Int, id)
+            .input('Stock', sql.Int, cantidad)
+            .query(`
+                UPDATE MedicamentosBodega
+                SET Stock = Stock + @Stock
+                WHERE IDMedicamento = @IDMedicamento
+            `);
+
+        res.status(200).json({ mensaje: 'Medicamento reabastecido correctamente' });
+    } catch (err) {
+        console.error('Error al reabastecer el medicamento:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al reabastecer el medicamento' });
+    }
+});
+
+app.get('/api/v1/medicamentos-bodega', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request().query(`
+            SELECT IDMedicamento, Nombre, Stock, FORMAT(FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion
+            FROM MedicamentosBodega
+        `);
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener medicamentos:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al obtener medicamentos' });
+    }
+});
+
+app.get('/api/v1/saldo-bodega', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query('SELECT saldo, ingresos, egresos FROM SaldoBodega WHERE id = 1');
+
+        if (result.recordset.length > 0) {
+            res.status(200).json(result.recordset[0]);
+        } else {
+            res.status(404).json({ mensaje: 'Información de saldo no encontrada' });
+        }
+    } catch (err) {
+        console.error('Error al obtener saldo:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al obtener saldo' });
+    }
+});
+
+app.post('/api/v1/transacciones-bodega', async (req, res) => {
+    const { descripcion, monto, tipo } = req.body;
+
+    if (!descripcion || !monto || !tipo || (tipo.toLowerCase() !== 'ingreso' && tipo.toLowerCase() !== 'egreso')) {
+        return res.status(400).json({ mensaje: 'Debe proporcionar una descripción, monto y tipo válido ("ingreso" o "egreso")' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Obtener ID para la nueva transacción
+        const idResult = await pool.request()
+            .query('SELECT ISNULL(MAX(ID), 0) + 1 AS nextId FROM MovimientosBodega');
+        const nextId = idResult.recordset[0].nextId;
+
+        // Insertar la transacción
+        await pool.request()
+            .input('ID', sql.Int, nextId)
+            .input('Descripcion', sql.VarChar(255), descripcion)
+            .input('Monto', sql.Decimal(10, 2), monto)
+            .input('Tipo', sql.VarChar(50), tipo)
+            .query(`
+                INSERT INTO MovimientosBodega (ID, Descripcion, Monto, Tipo, Fecha)
+                VALUES (@ID, @Descripcion, @Monto, @Tipo, GETDATE())
+            `);
+
+        // Actualizar saldo
+        if (tipo.toLowerCase() === 'ingreso') {
+            await pool.request()
+                .input('Monto', sql.Decimal(10, 2), monto)
+                .query(`
+                    UPDATE SaldoBodega
+                    SET Saldo = Saldo + @Monto, Ingresos = Ingresos + @Monto
+                    WHERE ID = 1
+                `);
+        } else {
+            await pool.request()
+                .input('Monto', sql.Decimal(10, 2), monto)
+                .query(`
+                    UPDATE SaldoBodega
+                    SET Saldo = Saldo - @Monto, Egresos = Egresos + @Monto
+                    WHERE ID = 1
+                `);
+        }
+
+        res.status(201).json({ mensaje: 'Transacción registrada correctamente', ID: nextId });
+    } catch (err) {
+        console.error('Error al registrar transacción:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al registrar transacción' });
+    }
+});
 
 
 app.listen(port, () => {
