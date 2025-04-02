@@ -424,7 +424,7 @@ app.post('/api/v1/transacciones-bodega', async (req, res) => {
 
         // Insertar la transacción
         await pool.request()
-            .input('ID', sql.Int, nextId)
+            .input('id', sql.Int, nextId)
             .input('descripcion', sql.VarChar(255), descripcion)
             .input('monto', sql.Decimal(10, 2), monto)
             .input('tipo', sql.VarChar(50), tipo)
@@ -439,15 +439,15 @@ app.post('/api/v1/transacciones-bodega', async (req, res) => {
                 .input('Monto', sql.Decimal(10, 2), monto)
                 .query(`
                     UPDATE SaldoBodega
-                    SET Saldo = Saldo + @Monto, Ingresos = Ingresos + @Monto
-                    WHERE ID = 1
+                    SET saldo = saldo + @Monto, ingresos = ingresos + @Monto
+                    WHERE id = 1
                 `);
         } else {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
                 .query(`
                     UPDATE SaldoBodega
-                    SET Saldo = Saldo - @Monto, Egresos = Egresos + @Monto
+                    SET saldo = saldo - @Monto, egresos = egresos + @Monto
                     WHERE ID = 1
                 `);
         }
