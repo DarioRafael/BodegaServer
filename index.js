@@ -419,18 +419,18 @@ app.post('/api/v1/transacciones-bodega', async (req, res) => {
 
         // Obtener ID para la nueva transacción
         const idResult = await pool.request()
-            .query('SELECT ISNULL(MAX(ID), 0) + 1 AS nextId FROM MovimientosBodega');
+            .query('SELECT ISNULL(MAX(id), 0) + 1 AS nextId FROM MovimientosBodega');
         const nextId = idResult.recordset[0].nextId;
 
         // Insertar la transacción
         await pool.request()
             .input('ID', sql.Int, nextId)
-            .input('Descripcion', sql.VarChar(255), descripcion)
-            .input('Monto', sql.Decimal(10, 2), monto)
-            .input('Tipo', sql.VarChar(50), tipo)
+            .input('descripcion', sql.VarChar(255), descripcion)
+            .input('monto', sql.Decimal(10, 2), monto)
+            .input('tipo', sql.VarChar(50), tipo)
             .query(`
-                INSERT INTO MovimientosBodega (ID, Descripcion, Monto, Tipo, Fecha)
-                VALUES (@ID, @Descripcion, @Monto, @Tipo, GETDATE())
+                INSERT INTO MovimientosBodega (id, descripcion, monto, tipo, fecha)
+                VALUES (@ID, @descripcion, @monto, @tipo, GETDATE())
             `);
 
         // Actualizar saldo
