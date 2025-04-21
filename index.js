@@ -505,33 +505,72 @@ app.put('/api/v1/pedidos/:id', (req, res) => {
 });
 
 
-// Endpoint POST to create a new order
-app.post('/api/v1/pedidos', (req, res) => {
+const sql = require('mssql');
+
+// POST para crear un nuevo pedido con sus productos
+app.post('/api/v1/pedidos', async (req, res) => {
     const { codigo_pedido, proveedor, estado, total, notas, productos } = req.body;
 
-    // Validate required fields
-    if (!codigo_pedido || !proveedor || !estado || !total || !productos) {
-        return res.status(400).json({ message: 'Missing required fields' });
+    if (!codigo_pedido || !proveedor || !estado || !total || !productos || !Array.isArray(productos)) {
+        return res.status(400).json({ message: 'Campos obligatorios faltantes o productos inválidos' });
     }
 
-    // Create a new order
-    const newPedido = {
-        id: pedidos.length + 1, // Auto-increment ID
-        codigo_pedido,
-        proveedor,
-        fecha_creacion: new Date().toISOString(),
-        fecha_actualizacion: new Date().toISOString(),
-        estado,
-        total,
-        notas: notas || '',
-        productos,
-    };
+    try {
+        const pool = await sql.connect();
 
-    // Add the new order to the list
-    pedidos.push(newPedido);
+        // Inicia una transacción
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
 
-    res.status(201).json({ message: 'Pedido creado exitosamente', pedido: newPedido });
+        try {
+            const request = new sql.Request(transaction);
+            request.input('codigo_pedido', sql.NVarChar(50), codigo_pedido);
+            request.input('proveedor', sql.NVarChar(100), proveedor);
+            request.input('estado', sql.NVarChar(20), estado);
+            request.input('total', sql.Decimal(10, 2), total);
+            request.input('notas', sql.NVarChar(sql.MAX), notas || '');
+
+            // Insertar el pedido
+            const result = await request.query(`
+                INSERT INTO pedidos (codigo_pedido, proveedor, fecha_creacion, fecha_actualizacion, estado, total, notas)
+                VALUES (@codigo_pedido, @proveedor, GETDATE(), GETDATE(), @estado, @total, @notas);
+                SELECT SCOPE_IDENTITY() AS id;
+            `);
+
+            const pedidoId = result.recordset[0].id;
+
+            // Insertar cada producto
+            for (const producto of productos) {
+                const prodRequest = new sql.Request(transaction);
+                prodRequest.input('pedido_id', sql.Int, pedidoId);
+                prodRequest.input('nombre', sql.NVarChar(100), producto.nombre);
+                prodRequest.input('precio', sql.Decimal(10, 2), producto.precio);
+                prodRequest.input('cantidad', sql.Int, producto.cantidad);
+
+                await prodRequest.query(`
+                    INSERT INTO productos_pedido (pedido_id, nombre, precio, cantidad)
+                    VALUES (@pedido_id, @nombre, @precio, @cantidad);
+                `);
+            }
+
+            await transaction.commit();
+
+            res.status(201).json({
+                message: 'Pedido y productos creados exitosamente',
+                pedido: { id: pedidoId, codigo_pedido, proveedor, estado, total, notas, productos }
+            });
+        } catch (err) {
+            await transaction.rollback();
+            console.error('Error al crear el pedido:', err);
+            res.status(500).json({ message: 'Error al crear el pedido', error: err.message });
+        }
+
+    } catch (err) {
+        console.error('Error en la conexión:', err);
+        res.status(500).json({ message: 'Error de conexión a la base de datos', error: err.message });
+    }
 });
+
 
 
 
