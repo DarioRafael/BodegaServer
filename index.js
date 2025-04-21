@@ -505,7 +505,6 @@ app.put('/api/v1/pedidos/:id', (req, res) => {
 });
 
 
-const sql = require('mssql');
 
 // POST para crear un nuevo pedido con sus productos
 app.post('/api/v1/pedidos', async (req, res) => {
