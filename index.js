@@ -474,6 +474,74 @@ app.get('/api/v1/movimientosGet', async (req, res) => {
 
 
 
+
+
+
+// Pedidos
+
+
+// Endpoint GET para obtener todos los pedidos
+app.get('/api/v1/pedidos', (req, res) => {
+    res.status(200).json({ pedidos });
+});
+
+// Endpoint PUT para actualizar el estado de un pedido
+app.put('/api/v1/pedidos/:id', (req, res) => {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    // Buscar el pedido por ID
+    const pedido = pedidos.find((p) => p.id === parseInt(id));
+
+    if (!pedido) {
+        return res.status(404).json({ message: 'Pedido no encontrado' });
+    }
+
+    // Actualizar el estado y la fecha de actualización
+    pedido.estado = estado;
+    pedido.fecha_actualizacion = new Date().toISOString();
+
+    res.status(200).json({ message: 'Estado del pedido actualizado', pedido });
+});
+
+
+// Endpoint POST to create a new order
+app.post('/api/v1/pedidos', (req, res) => {
+    const { codigo_pedido, proveedor, estado, total, notas, productos } = req.body;
+
+    // Validate required fields
+    if (!codigo_pedido || !proveedor || !estado || !total || !productos) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Create a new order
+    const newPedido = {
+        id: pedidos.length + 1, // Auto-increment ID
+        codigo_pedido,
+        proveedor,
+        fecha_creacion: new Date().toISOString(),
+        fecha_actualizacion: new Date().toISOString(),
+        estado,
+        total,
+        notas: notas || '',
+        productos,
+    };
+
+    // Add the new order to the list
+    pedidos.push(newPedido);
+
+    res.status(201).json({ message: 'Pedido creado exitosamente', pedido: newPedido });
+});
+
+
+
+
+
+
+
+
+
+
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
