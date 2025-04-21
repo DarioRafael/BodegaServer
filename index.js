@@ -481,7 +481,7 @@ app.get('/api/v1/movimientosGet', async (req, res) => {
 
 
 // Endpoint GET para obtener todos los pedidos
-app.get('/api/v1/pedidos', (req, res) => {
+app.get('/api/v1/pedidosGet', (req, res) => {
     res.status(200).json({ pedidos });
 });
 
