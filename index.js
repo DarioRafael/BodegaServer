@@ -479,99 +479,97 @@ app.get('/api/v1/movimientosGet', async (req, res) => {
 
 // Pedidos
 
+// Endpoint POST específico para cancelar pedidos desde la bodega
+app.post('/api/v1/bodega/cancelar-pedido', async (req, res) => {
+    const {
+        pedido_id,
+        motivo
+    } = req.body;
 
-// Endpoint GET para obtener todos los pedidos
-app.get('/api/v1/pedidosGet', (req, res) => {
-    res.status(200).json({ pedidos });
-});
-
-// Endpoint PUT para actualizar el estado de un pedido
-app.put('/api/v1/pedidos/:id', (req, res) => {
-    const { id } = req.params;
-    const { estado } = req.body;
-
-    // Buscar el pedido por ID
-    const pedido = pedidos.find((p) => p.id === parseInt(id));
-
-    if (!pedido) {
-        return res.status(404).json({ message: 'Pedido no encontrado' });
+    // Validación de campos obligatorios
+    if (!pedido_id) {
+        return res.status(400).json({
+            message: 'Se requiere el ID del pedido'
+        });
     }
 
-    // Actualizar el estado y la fecha de actualización
-    pedido.estado = estado;
-    pedido.fecha_actualizacion = new Date().toISOString();
-
-    res.status(200).json({ message: 'Estado del pedido actualizado', pedido });
-});
-
-
-
-// POST para crear un nuevo pedido con sus productos
-app.post('/api/v1/pedidos', async (req, res) => {
-    const { codigo_pedido, proveedor, estado, total, notas, productos } = req.body;
-
-    if (!codigo_pedido || !proveedor || !estado || !total || !productos || !Array.isArray(productos)) {
-        return res.status(400).json({ message: 'Campos obligatorios faltantes o productos inválidos' });
+    // Validar que tenga motivo
+    if (!motivo) {
+        return res.status(400).json({
+            message: 'Se requiere especificar un motivo para cancelar el pedido'
+        });
     }
 
     try {
-        const pool = await sql.connect();
+        const pool = await sql.connect(config);
 
-        // Inicia una transacción
+        // Verificar si el pedido existe
+        const pedidoResult = await pool.request()
+            .input('id', sql.Int, pedido_id)
+            .query('SELECT * FROM pedidos WHERE id = @id');
+
+        if (pedidoResult.recordset.length === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
+
+        const pedido = pedidoResult.recordset[0];
+
+        // Verificar que el pedido esté en un estado que permita la cancelación
+        if (pedido.estado === 'cancelado') {
+            return res.status(400).json({ message: 'Este pedido ya fue cancelado anteriormente' });
+        }
+
+        if (pedido.estado === 'completado') {
+            return res.status(400).json({ message: 'No se puede cancelar un pedido que ya fue completado' });
+        }
+
+        // Iniciar transacción
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
         try {
             const request = new sql.Request(transaction);
-            request.input('codigo_pedido', sql.NVarChar(50), codigo_pedido);
-            request.input('proveedor', sql.NVarChar(100), proveedor);
-            request.input('estado', sql.NVarChar(20), estado);
-            request.input('total', sql.Decimal(10, 2), total);
-            request.input('notas', sql.NVarChar(sql.MAX), notas || '');
 
-            // Insertar el pedido
-            const result = await request.query(`
-                INSERT INTO pedidos (codigo_pedido, proveedor, fecha_creacion, fecha_actualizacion, estado, total, notas)
-                VALUES (@codigo_pedido, @proveedor, GETDATE(), GETDATE(), @estado, @total, @notas);
-                SELECT SCOPE_IDENTITY() AS id;
-            `);
-
-            const pedidoId = result.recordset[0].id;
-
-            // Insertar cada producto
-            for (const producto of productos) {
-                const prodRequest = new sql.Request(transaction);
-                prodRequest.input('pedido_id', sql.Int, pedidoId);
-                prodRequest.input('nombre', sql.NVarChar(100), producto.nombre);
-                prodRequest.input('precio', sql.Decimal(10, 2), producto.precio);
-                prodRequest.input('cantidad', sql.Int, producto.cantidad);
-
-                await prodRequest.query(`
-                    INSERT INTO productos_pedido (pedido_id, nombre, precio, cantidad)
-                    VALUES (@pedido_id, @nombre, @precio, @cantidad);
+            // Actualizar el pedido a estado cancelado
+            await request
+                .input('id', sql.Int, pedido_id)
+                .input('estado', sql.NVarChar(20), 'cancelado')
+                .input('motivo', sql.NVarChar(sql.MAX), `Cancelado por bodega: ${motivo}`)
+                .query(`
+                    UPDATE pedidos 
+                    SET estado = @estado, 
+                        fecha_actualizacion = GETDATE(),
+                        notas = CASE 
+                                  WHEN notas IS NULL OR notas = '' THEN @motivo
+                                  ELSE notas + '; ' + @motivo
+                                END
+                    WHERE id = @id
                 `);
-            }
 
             await transaction.commit();
 
-            res.status(201).json({
-                message: 'Pedido y productos creados exitosamente',
-                pedido: { id: pedidoId, codigo_pedido, proveedor, estado, total, notas, productos }
+            res.status(200).json({
+                message: 'Pedido cancelado exitosamente',
+                pedido_id,
+                estado: 'cancelado',
+                motivo
             });
         } catch (err) {
             await transaction.rollback();
-            console.error('Error al crear el pedido:', err);
-            res.status(500).json({ message: 'Error al crear el pedido', error: err.message });
+            console.error('Error al cancelar el pedido:', err);
+            res.status(500).json({
+                message: 'Error al cancelar el pedido',
+                error: err.message
+            });
         }
-
     } catch (err) {
         console.error('Error en la conexión:', err);
-        res.status(500).json({ message: 'Error de conexión a la base de datos', error: err.message });
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: err.message
+        });
     }
 });
-
-
-
 
 
 
