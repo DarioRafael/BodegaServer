@@ -379,7 +379,7 @@ app.get('/api/v1/medicamentos-bodega', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request().query(`
-            SELECT IDMedicamento, Nombre, Stock, FORMAT(FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion
+            SELECT ID, NombreGenerico, Stock, FORMAT(FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion
             FROM medicamentosBodega
         `);
 
