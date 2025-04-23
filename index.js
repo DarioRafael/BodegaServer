@@ -571,6 +571,89 @@ app.post('/api/v1/bodega/cancelar-pedido', async (req, res) => {
     }
 });
 
+app.post('/api/v1/bodega/confirmar-pedido', async (req, res) => {
+    const { pedido_id } = req.body;
+
+    // Validación de campos obligatorios
+    if (!pedido_id) {
+        return res.status(400).json({
+            message: 'Se requiere el ID del pedido'
+        });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Verificar si el pedido existe
+        const pedidoResult = await pool.request()
+            .input('id', sql.Int, pedido_id)
+            .query('SELECT * FROM pedidos WHERE id = @id');
+
+        if (pedidoResult.recordset.length === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
+
+        const pedido = pedidoResult.recordset[0];
+
+        // Verificar que el pedido no esté cancelado o completado
+        if (pedido.estado === 'cancelado') {
+            return res.status(400).json({ message: 'No se puede confirmar un pedido que ha sido cancelado' });
+        }
+
+        if (pedido.estado === 'completado') {
+            return res.status(400).json({ message: 'No se puede confirmar un pedido que ya fue completado' });
+        }
+
+        if (pedido.estado === 'confirmado') {
+            return res.status(400).json({ message: 'Este pedido ya está confirmado' });
+        }
+
+        // Iniciar transacción
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const request = new sql.Request(transaction);
+
+            // Actualizar el pedido a estado confirmado
+            await request
+                .input('id', sql.Int, pedido_id)
+                .input('estado', sql.NVarChar(20), 'confirmado')
+                .input('nota', sql.NVarChar(sql.MAX), 'Pedido confirmado por bodega')
+                .query(`
+                    UPDATE pedidos 
+                    SET estado = @estado, 
+                        fecha_actualizacion = GETDATE(),
+                        notas = CASE 
+                                  WHEN notas IS NULL OR notas = '' THEN @nota
+                                  ELSE notas + '; ' + @nota
+                                END
+                    WHERE id = @id
+                `);
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Pedido confirmado exitosamente',
+                pedido_id,
+                estado: 'confirmado'
+            });
+        } catch (err) {
+            await transaction.rollback();
+            console.error('Error al confirmar el pedido:', err);
+            res.status(500).json({
+                message: 'Error al confirmar el pedido',
+                error: err.message
+            });
+        }
+    } catch (err) {
+        console.error('Error en la conexión:', err);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: err.message
+        });
+    }
+});
 
 
 
