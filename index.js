@@ -655,7 +655,123 @@ app.post('/api/v1/bodega/confirmar-pedido', async (req, res) => {
     }
 });
 
+app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
+    const { pedido_id, tablaFarmacia } = req.body;
 
+    if (!pedido_id || !tablaFarmacia) {
+        return res.status(400).json({
+            message: 'Se requiere el ID del pedido y el nombre de la tabla de la farmacia'
+        });
+    }
+
+    // Validar que la tabla de la farmacia sea segura
+    const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
+    if (!tablaSegura) {
+        return res.status(400).json({ message: 'Nombre de tabla inválido' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Verificar si el pedido existe
+        const pedidoResult = await pool.request()
+            .input('id', sql.Int, pedido_id)
+            .query('SELECT * FROM pedidos WHERE id = @id');
+
+        if (pedidoResult.recordset.length === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
+
+        const pedido = pedidoResult.recordset[0];
+
+        if (pedido.estado === 'cancelado') {
+            return res.status(400).json({ message: 'No se puede completar un pedido cancelado' });
+        }
+
+        if (pedido.estado === 'completado') {
+            return res.status(400).json({ message: 'Este pedido ya está completado' });
+        }
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const request = new sql.Request(transaction);
+
+            // 🔵 Aquí corregimos: sacar productos desde productos_pedido
+            const productosResult = await request
+                .input('pedido_id', sql.Int, pedido_id)
+                .query(`
+                    SELECT producto_nombre, cantidad
+                    FROM productos_pedido
+                    WHERE pedido_id = @pedido_id
+                `);
+
+            const productos = productosResult.recordset;
+
+            if (productos.length === 0) {
+                throw new Error('No se encontraron productos asociados al pedido');
+            }
+
+            // 2. Actualizar inventario en la tabla de la farmacia
+            for (const producto of productos) {
+                const { producto_nombre, cantidad } = producto;
+
+                if (!producto_nombre || cantidad <= 0) {
+                    console.warn(`Producto inválido en el pedido:`, producto);
+                    continue;
+                }
+
+                // Construcción segura del UPDATE
+                const queryActualizar = `
+                    UPDATE ${tablaFarmacia}
+                    SET Stock = Stock + @stock
+                    WHERE Nombre = @nombre
+                `;
+
+                await request
+                    .input('nombre', sql.NVarChar(255), producto_nombre)
+                    .input('stock', sql.Int, cantidad)
+                    .query(queryActualizar);
+            }
+
+            // 3. Cambiar estado del pedido a 'completado'
+            await request
+                .input('id', sql.Int, pedido_id)
+                .input('estado', sql.NVarChar(20), 'completado')
+                .query(`
+                    UPDATE pedidos
+                    SET estado = @estado,
+                        fecha_actualizacion = GETDATE()
+                    WHERE id = @id
+                `);
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Pedido completado y productos reabastecidos correctamente en la farmacia',
+                pedido_id,
+                estado: 'completado',
+                tabla_farmacia: tablaFarmacia,
+                productos: productos.map(p => ({ nombre: p.producto_nombre, cantidad: p.cantidad }))
+            });
+
+        } catch (err) {
+            await transaction.rollback();
+            console.error('Error al completar el pedido:', err);
+            res.status(500).json({
+                message: 'Error al completar el pedido',
+                error: err.message
+            });
+        }
+    } catch (err) {
+        console.error('Error en la conexión:', err);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: err.message
+        });
+    }
+});
 
 
 
