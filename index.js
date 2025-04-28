@@ -664,7 +664,7 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
         });
     }
 
-    // Validar que la tabla de la farmacia sea segura
+    // Validar que la tablaFarmacia sea segura
     const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
     if (!tablaSegura) {
         return res.status(400).json({ message: 'Nombre de tabla inválido' });
@@ -684,6 +684,7 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
 
         const pedido = pedidoResult.recordset[0];
 
+        // Verificar si el pedido está cancelado o ya completado
         if (pedido.estado === 'cancelado') {
             return res.status(400).json({ message: 'No se puede completar un pedido cancelado' });
         }
@@ -692,17 +693,18 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
             return res.status(400).json({ message: 'Este pedido ya está completado' });
         }
 
+        // Iniciar la transacción
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
         try {
             const request = new sql.Request(transaction);
 
-            // 🔵 Aquí corregimos: sacar productos desde productos_pedido
+            // 1. Obtener productos del pedido
             const productosResult = await request
                 .input('pedido_id', sql.Int, pedido_id)
                 .query(`
-                    SELECT producto_nombre, cantidad
+                    SELECT nombre, cantidad
                     FROM productos_pedido
                     WHERE pedido_id = @pedido_id
                 `);
@@ -713,29 +715,29 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
                 throw new Error('No se encontraron productos asociados al pedido');
             }
 
-            // 2. Actualizar inventario en la tabla de la farmacia
+            // 2. Actualizar el inventario en la tabla dinámica de la farmacia
             for (const producto of productos) {
-                const { producto_nombre, cantidad } = producto;
+                const { nombre, cantidad } = producto;
 
-                if (!producto_nombre || cantidad <= 0) {
+                if (!nombre || cantidad <= 0) {
                     console.warn(`Producto inválido en el pedido:`, producto);
                     continue;
                 }
 
-                // Construcción segura del UPDATE
+                // Aquí usamos el nombre de la tabla directamente (validado previamente)
                 const queryActualizar = `
                     UPDATE ${tablaFarmacia}
-                    SET Stock = Stock + @stock
+                    SET Stock = Stock - @cantidad
                     WHERE Nombre = @nombre
                 `;
 
                 await request
-                    .input('nombre', sql.NVarChar(255), producto_nombre)
-                    .input('stock', sql.Int, cantidad)
+                    .input('nombre', sql.NVarChar(255), nombre)
+                    .input('cantidad', sql.Int, cantidad)
                     .query(queryActualizar);
             }
 
-            // 3. Cambiar estado del pedido a 'completado'
+            // 3. Marcar el pedido como completado
             await request
                 .input('id', sql.Int, pedido_id)
                 .input('estado', sql.NVarChar(20), 'completado')
@@ -749,11 +751,11 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
             await transaction.commit();
 
             res.status(200).json({
-                message: 'Pedido completado y productos reabastecidos correctamente en la farmacia',
+                message: 'Pedido completado y productos reabastecidos en farmacia exitosamente',
                 pedido_id,
                 estado: 'completado',
                 tabla_farmacia: tablaFarmacia,
-                productos: productos.map(p => ({ nombre: p.producto_nombre, cantidad: p.cantidad }))
+                productos: productos.map(p => ({ nombre: p.nombre, cantidad: p.cantidad }))
             });
 
         } catch (err) {
@@ -772,6 +774,7 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
         });
     }
 });
+
 
 
 
