@@ -727,8 +727,8 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
                 // Aquí usamos el nombre de la tabla directamente (validado previamente)
                 const queryActualizar = `
                     UPDATE ${tablaFarmacia}
-                    SET Stock = Stock - @cantidad
-                    WHERE NombreGenerico = @nombre
+                    SET Stock = Stock - @cantidadProducto
+                    WHERE NombreGenerico = @nombreProducto
                 `;
 
                 await request
