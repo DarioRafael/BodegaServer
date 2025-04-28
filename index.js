@@ -735,78 +735,128 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
 app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
     const { tablaFarmacia, productos } = req.body;
 
+    // Validaciones iniciales
     if (!tablaFarmacia || !productos || !Array.isArray(productos)) {
         return res.status(400).json({
             message: 'Se requiere el nombre de la tabla de farmacia y una lista de productos'
         });
-    }
 
-    // Validar que la tablaFarmacia sea segura
-    const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
-    if (!tablaSegura) {
-        return res.status(400).json({ message: 'Nombre de tabla inválido' });
+        // Validar que la tablaFarmacia sea segura
+        const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
+        if (!tablaSegura) {
+            return res.status(400).json({ message: 'Nombre de tabla inválido' });
+        }
     }
 
     try {
         const pool = await sql.connect(config);
-
-        // Iniciar la transacción
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
         try {
             const request = new sql.Request(transaction);
 
-            // 2. Actualizar el inventario en la tabla dinámica de la farmacia
+            // Resultado de operaciones para cada producto
+            const resultadosActualizacion = [];
+
+            // Procesar cada producto
             for (const producto of productos) {
                 const { nombreProducto, cantidadProducto } = producto;
 
+                // Validar datos del producto
                 if (!nombreProducto || cantidadProducto <= 0) {
-                    console.warn(`Producto inválido:`, producto);
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        status: 'error',
+                        mensaje: 'Datos de producto inválidos'
+                    });
                     continue;
                 }
 
-                // Aquí usamos el nombre de la tabla directamente (validado previamente)
-                const queryActualizar = `
-                    UPDATE ${tablaFarmacia}
-                    SET Stock = Stock + @cantidadProducto
-                    WHERE NombreGenerico = @nombreProducto
-                `;
+                // Normalizar el nombre del producto (quitar espacios, convertir a minúsculas)
+                const nombreNormalizado = nombreProducto.trim().toLowerCase();
 
-                await request
-                    .input('nombreProducto', sql.NVarChar(255), nombreProducto)
-                    .input('cantidadProducto', sql.Int, cantidadProducto)
-                    .query(queryActualizar);
+                // Buscar productos que coincidan (permitiendo coincidencias parciales)
+                const busquedaProducto = await request
+                    .input('nombreNormalizado', sql.NVarChar(255), `%${nombreNormalizado}%`)
+                    .query(`
+                        SELECT NombreGenerico, Stock 
+                        FROM ${tablaFarmacia} 
+                        WHERE LOWER(REPLACE(NombreGenerico, ' ', '')) LIKE LOWER(REPLACE(@nombreNormalizado, ' ', ''))
+                    `);
+
+                // Si no se encuentra el producto
+                if (busquedaProducto.recordset.length === 0) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        status: 'error',
+                        mensaje: 'Producto no encontrado en el inventario'
+                    });
+                    continue;
+                }
+
+                // Si se encuentra, actualizar el stock
+                const productoEncontrado = busquedaProducto.recordset[0];
+
+                try {
+                    const resultadoActualizacion = await request
+                        .input('nombreGenerico', sql.NVarChar(255), productoEncontrado.NombreGenerico)
+                        .input('cantidadProducto', sql.Int, cantidadProducto)
+                        .query(`
+                            UPDATE ${tablaFarmacia}
+                            SET Stock = Stock + @cantidadProducto
+                            WHERE NombreGenerico = @nombreGenerico
+                        `);
+
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        status: 'success',
+                        stockAnterior: productoEncontrado.Stock,
+                        stockActualizado: productoEncontrado.Stock + cantidadProducto
+                    });
+                } catch (errorActualizacion) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        status: 'error',
+                        mensaje: 'Error al actualizar el stock',
+                        detalleError: errorActualizacion.message
+                    });
+                }
             }
 
+            // Commit de la transacción
             await transaction.commit();
 
+            // Respuesta con resultados detallados
             res.status(200).json({
-                message: 'Stock actualizado exitosamente',
+                message: 'Proceso de actualización de stock completado',
                 tabla_farmacia: tablaFarmacia,
-                productos: productos.map(p => ({
-                    nombre: p.nombreProducto,
-                    cantidad: p.cantidadProducto
-                }))
+                resultados: resultadosActualizacion,
+                resumen: {
+                    total: resultadosActualizacion.length,
+                    exitosos: resultadosActualizacion.filter(r => r.status === 'success').length,
+                    errores: resultadosActualizacion.filter(r => r.status === 'error').length
+                }
             });
 
-        } catch (err) {
+        } catch (errorTransaccion) {
+            // Rollback en caso de error
             await transaction.rollback();
-            console.error('Error al actualizar stock:', err);
+            console.error('Error en la transacción:', errorTransaccion);
+
             res.status(500).json({
-                message: 'Error al actualizar stock',
-                error: err.message
+                message: 'Error al procesar la actualización de stock',
+                error: errorTransaccion.message
             });
         }
-    } catch (err) {
-        console.error('Error en la conexión:', err);
+    } catch (errorConexion) {
+        console.error('Error de conexión a la base de datos:', errorConexion);
         res.status(500).json({
             message: 'Error de conexión a la base de datos',
-            error: err.message
+            error: errorConexion.message
         });
     }
 });
-
 
 
 app.listen(port, () => {
