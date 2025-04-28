@@ -759,11 +759,12 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
             for (const producto of productos) {
                 const { nombreProducto, cantidadProducto } = producto;
 
-                if (!nombreProducto || cantidadProducto <= 0) {
+                // Validar que el nombre del producto no esté duplicado
+                if (productos.findIndex(p => p.nombreProducto === nombreProducto) !== productos.indexOf(producto)) {
                     resultadosActualizacion.push({
                         nombre: nombreProducto,
                         status: 'error',
-                        mensaje: 'Datos de producto inválidos'
+                        mensaje: 'Producto duplicado en la solicitud'
                     });
                     continue;
                 }
