@@ -795,7 +795,7 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                         .input('cantidadProducto', sql.Int, cantidadProducto)
                         .query(`
                             UPDATE ${tablaFarmacia}
-                            SET Stock = Stock - @cantidadProducto
+                            SET Stock = Stock + @cantidadProducto
                             WHERE NombreGenerico = @nombreGenerico
                         `);
 
