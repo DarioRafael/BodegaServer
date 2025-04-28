@@ -731,7 +731,6 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
     }
 });
 
-// Endpoint para actualizar el stock de productos
 app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
     const { tablaFarmacia, productos } = req.body;
 
@@ -740,12 +739,12 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
         return res.status(400).json({
             message: 'Se requiere el nombre de la tabla de farmacia y una lista de productos'
         });
+    }
 
-        // Validar que la tablaFarmacia sea segura
-        const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
-        if (!tablaSegura) {
-            return res.status(400).json({ message: 'Nombre de tabla inválido' });
-        }
+    // Validar que la tablaFarmacia sea segura
+    const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
+    if (!tablaSegura) {
+        return res.status(400).json({ message: 'Nombre de tabla inválido' });
     }
 
     try {
@@ -755,15 +754,11 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
 
         try {
             const request = new sql.Request(transaction);
-
-            // Resultado de operaciones para cada producto
             const resultadosActualizacion = [];
 
-            // Procesar cada producto
             for (const producto of productos) {
                 const { nombreProducto, cantidadProducto } = producto;
 
-                // Validar datos del producto
                 if (!nombreProducto || cantidadProducto <= 0) {
                     resultadosActualizacion.push({
                         nombre: nombreProducto,
@@ -773,19 +768,16 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                     continue;
                 }
 
-                // Normalizar el nombre del producto (quitar espacios, convertir a minúsculas)
-                const nombreNormalizado = nombreProducto.trim().toLowerCase();
-
-                // Buscar productos que coincidan (permitiendo coincidencias parciales)
+                // Buscar el producto con una búsqueda más flexible
                 const busquedaProducto = await request
-                    .input('nombreNormalizado', sql.NVarChar(255), `%${nombreNormalizado}%`)
+                    .input('nombreProducto', sql.NVarChar(255), nombreProducto)
                     .query(`
                         SELECT NombreGenerico, Stock 
                         FROM ${tablaFarmacia} 
-                        WHERE LOWER(REPLACE(NombreGenerico, ' ', '')) LIKE LOWER(REPLACE(@nombreNormalizado, ' ', ''))
+                        WHERE NombreGenerico LIKE @nombreProducto
+                        OR REPLACE(LOWER(NombreGenerico), ' ', '') LIKE REPLACE(LOWER(@nombreProducto), ' ', '')
                     `);
 
-                // Si no se encuentra el producto
                 if (busquedaProducto.recordset.length === 0) {
                     resultadosActualizacion.push({
                         nombre: nombreProducto,
@@ -795,16 +787,15 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                     continue;
                 }
 
-                // Si se encuentra, actualizar el stock
                 const productoEncontrado = busquedaProducto.recordset[0];
 
                 try {
-                    const resultadoActualizacion = await request
+                    await request
                         .input('nombreGenerico', sql.NVarChar(255), productoEncontrado.NombreGenerico)
                         .input('cantidadProducto', sql.Int, cantidadProducto)
                         .query(`
                             UPDATE ${tablaFarmacia}
-                            SET Stock = Stock + @cantidadProducto
+                            SET Stock = Stock - @cantidadProducto
                             WHERE NombreGenerico = @nombreGenerico
                         `);
 
@@ -812,7 +803,7 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                         nombre: nombreProducto,
                         status: 'success',
                         stockAnterior: productoEncontrado.Stock,
-                        stockActualizado: productoEncontrado.Stock + cantidadProducto
+                        stockActualizado: productoEncontrado.Stock - cantidadProducto
                     });
                 } catch (errorActualizacion) {
                     resultadosActualizacion.push({
@@ -824,10 +815,8 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                 }
             }
 
-            // Commit de la transacción
             await transaction.commit();
 
-            // Respuesta con resultados detallados
             res.status(200).json({
                 message: 'Proceso de actualización de stock completado',
                 tabla_farmacia: tablaFarmacia,
@@ -840,10 +829,8 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
             });
 
         } catch (errorTransaccion) {
-            // Rollback en caso de error
             await transaction.rollback();
             console.error('Error en la transacción:', errorTransaccion);
-
             res.status(500).json({
                 message: 'Error al procesar la actualización de stock',
                 error: errorTransaccion.message
