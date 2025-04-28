@@ -655,19 +655,14 @@ app.post('/api/v1/bodega/confirmar-pedido', async (req, res) => {
     }
 });
 
-app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
-    const { pedido_id, tablaFarmacia } = req.body;
+// Endpoint para marcar un pedido como completado
+app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
+    const { pedido_id } = req.body;
 
-    if (!pedido_id || !tablaFarmacia) {
+    if (!pedido_id) {
         return res.status(400).json({
-            message: 'Se requiere el ID del pedido y el nombre de la tabla de la farmacia'
+            message: 'Se requiere el ID del pedido'
         });
-    }
-
-    // Validar que la tablaFarmacia sea segura
-    const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
-    if (!tablaSegura) {
-        return res.status(400).json({ message: 'Nombre de tabla inválido' });
     }
 
     try {
@@ -700,44 +695,7 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
         try {
             const request = new sql.Request(transaction);
 
-            // 1. Obtener productos del pedido
-            const productosResult = await request
-                .input('pedido_id', sql.Int, pedido_id)
-                .query(`
-                    SELECT nombre, cantidad
-                    FROM productos_pedido
-                    WHERE pedido_id = @pedido_id
-                `);
-
-            const productos = productosResult.recordset;
-
-            if (productos.length === 0) {
-                throw new Error('No se encontraron productos asociados al pedido');
-            }
-
-            // 2. Actualizar el inventario en la tabla dinámica de la farmacia
-            for (const producto of productos) {
-                const { nombre, cantidad } = producto;
-
-                if (!nombre || cantidad <= 0) {
-                    console.warn(`Producto inválido en el pedido:`, producto);
-                    continue;
-                }
-
-                // Aquí usamos el nombre de la tabla directamente (validado previamente)
-                const queryActualizar = `
-                    UPDATE ${tablaFarmacia}
-                    SET Stock = Stock - @cantidadProducto
-                    WHERE NombreGenerico = @nombreProducto
-                `;
-
-                await request
-                    .input('nombre', sql.NVarChar(255), nombre)
-                    .input('cantidad', sql.Int, cantidad)
-                    .query(queryActualizar);
-            }
-
-            // 3. Marcar el pedido como completado
+            // Marcar el pedido como completado
             await request
                 .input('id', sql.Int, pedido_id)
                 .input('estado', sql.NVarChar(20), 'completado')
@@ -751,18 +709,16 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
             await transaction.commit();
 
             res.status(200).json({
-                message: 'Pedido completado y productos reabastecidos en farmacia exitosamente',
+                message: 'Pedido marcado como completado exitosamente',
                 pedido_id,
-                estado: 'completado',
-                tabla_farmacia: tablaFarmacia,
-                productos: productos.map(p => ({ nombre: p.nombre, cantidad: p.cantidad }))
+                estado: 'completado'
             });
 
         } catch (err) {
             await transaction.rollback();
-            console.error('Error al completar el pedido:', err);
+            console.error('Error al marcar pedido como completado:', err);
             res.status(500).json({
-                message: 'Error al completar el pedido',
+                message: 'Error al marcar pedido como completado',
                 error: err.message
             });
         }
@@ -775,8 +731,81 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
     }
 });
 
+// Endpoint para actualizar el stock de productos
+app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
+    const { tablaFarmacia, productos } = req.body;
 
+    if (!tablaFarmacia || !productos || !Array.isArray(productos)) {
+        return res.status(400).json({
+            message: 'Se requiere el nombre de la tabla de farmacia y una lista de productos'
+        });
+    }
 
+    // Validar que la tablaFarmacia sea segura
+    const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
+    if (!tablaSegura) {
+        return res.status(400).json({ message: 'Nombre de tabla inválido' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Iniciar la transacción
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const request = new sql.Request(transaction);
+
+            // 2. Actualizar el inventario en la tabla dinámica de la farmacia
+            for (const producto of productos) {
+                const { nombreProducto, cantidadProducto } = producto;
+
+                if (!nombreProducto || cantidadProducto <= 0) {
+                    console.warn(`Producto inválido:`, producto);
+                    continue;
+                }
+
+                // Aquí usamos el nombre de la tabla directamente (validado previamente)
+                const queryActualizar = `
+                    UPDATE ${tablaFarmacia}
+                    SET Stock = Stock - @cantidadProducto
+                    WHERE NombreGenerico = @nombreProducto
+                `;
+
+                await request
+                    .input('nombreProducto', sql.NVarChar(255), nombreProducto)
+                    .input('cantidadProducto', sql.Int, cantidadProducto)
+                    .query(queryActualizar);
+            }
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Stock actualizado exitosamente',
+                tabla_farmacia: tablaFarmacia,
+                productos: productos.map(p => ({
+                    nombre: p.nombreProducto,
+                    cantidad: p.cantidadProducto
+                }))
+            });
+
+        } catch (err) {
+            await transaction.rollback();
+            console.error('Error al actualizar stock:', err);
+            res.status(500).json({
+                message: 'Error al actualizar stock',
+                error: err.message
+            });
+        }
+    } catch (err) {
+        console.error('Error en la conexión:', err);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: err.message
+        });
+    }
+});
 
 
 
