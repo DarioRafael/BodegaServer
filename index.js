@@ -728,7 +728,7 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
                 const queryActualizar = `
                     UPDATE ${tablaFarmacia}
                     SET Stock = Stock - @cantidad
-                    WHERE Nombre = @nombre
+                    WHERE NombreGenerico = @nombre
                 `;
 
                 await request
