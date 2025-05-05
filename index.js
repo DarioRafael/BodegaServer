@@ -1072,12 +1072,6 @@ app.post('/api/v1/bodega/reducir-stock', async (req, res) => {
 });
 
 
-//
-
-
-
-
-
 //JUANCARLOS Y GAEL
 app.get('/api/v1/farmacia-cesar/pedidos', async (req, res) => {
     try {
@@ -1307,6 +1301,15 @@ app.post('/api/v1/cesar/actualizar-stock-externo', async (req, res) => {
     }
 });
 
+app.get('/api/v1/cesar/medicamentos', async (req, res) => {
+    try {
+        const response = await axios.get('https://farmacia-api.loca.lt/api/medicamentosPED');
+        res.json(response.data);
+    } catch (error) {
+        console.error('Error al obtener los datos:', error.message);
+        res.status(500).json({ error: 'Error al obtener los datos de la API externa' });
+    }
+});
 
 
 
