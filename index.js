@@ -811,7 +811,7 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
 
 app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
     const { productos } = req.body;
-    const tablaFarmacia = 'medicamentosBodega';
+    const tablaFarmacia = 'Medicamentos';
 
     if (!productos || !Array.isArray(productos)) {
         return res.status(400).json({
@@ -855,7 +855,7 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                     .query(`
                         SELECT ID, Codigo, NombreGenerico, NombreMedico, Fabricante, Contenido, 
                         FormaFarmaceutica, Presentacion, UnidadesPorCaja, Stock, Precio
-                        FROM medicamentosBodega 
+                        FROM Medicamentos 
                         WHERE Codigo = @codigoProducto
                     `);
 
@@ -877,8 +877,12 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
                         .input('codigoProducto', sql.NVarChar(255), codigo)
                         .input('cantidadProducto', sql.Int, cantidadProducto)
                         .query(`
-                            UPDATE medicamentosBodega
+                            UPDATE Medicamentos
                             SET Stock = Stock + @cantidadProducto
+                            WHERE Codigo = @codigoProducto
+                            
+                            UPDATE medicamentosBodega
+                            SET Stock = Stock - @cantidadProducto
                             WHERE Codigo = @codigoProducto
                         `);
 
