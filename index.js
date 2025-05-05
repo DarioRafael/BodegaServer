@@ -940,7 +940,136 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
         });
     }
 });
+app.post('/api/v1/bodega/reducir-stock', async (req, res) => {
+    const { productos } = req.body;
 
+    if (!productos || !Array.isArray(productos)) {
+        return res.status(400).json({
+            message: 'Se requiere una lista de productos'
+        });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const resultadosActualizacion = [];
+
+            for (const producto of productos) {
+                const { nombreProducto, cantidadProducto, codigo } = producto;
+
+                if (!codigo) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        status: 'error',
+                        mensaje: 'El producto no tiene código especificado'
+                    });
+                    continue;
+                }
+
+                if (productos.findIndex(p => p.codigo === codigo) !== productos.indexOf(producto)) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Código de producto duplicado en la solicitud'
+                    });
+                    continue;
+                }
+
+                const requestBusqueda = new sql.Request(transaction);
+                const busquedaProducto = await requestBusqueda
+                    .input('codigoProducto', sql.NVarChar(255), codigo)
+                    .query(`
+                        SELECT Codigo, NombreGenerico, Stock
+                        FROM medicamentosBodega 
+                        WHERE Codigo = @codigoProducto
+                    `);
+
+                if (busquedaProducto.recordset.length === 0) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Producto con este código no encontrado en la bodega'
+                    });
+                    continue;
+                }
+
+                const productoEncontrado = busquedaProducto.recordset[0];
+
+                // Verificar que haya suficiente stock
+                if (productoEncontrado.Stock < cantidadProducto) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Stock insuficiente en bodega',
+                        stockDisponible: productoEncontrado.Stock,
+                        cantidadSolicitada: cantidadProducto
+                    });
+                    continue;
+                }
+
+                try {
+                    const requestUpdate = new sql.Request(transaction);
+                    await requestUpdate
+                        .input('codigoProducto', sql.NVarChar(255), codigo)
+                        .input('cantidadProducto', sql.Int, cantidadProducto)
+                        .query(`
+                            UPDATE medicamentosBodega
+                            SET Stock = Stock - @cantidadProducto
+                            WHERE Codigo = @codigoProducto
+                        `);
+
+                    resultadosActualizacion.push({
+                        nombre: productoEncontrado.NombreGenerico,
+                        codigo: productoEncontrado.Codigo,
+                        status: 'success',
+                        stockAnterior: productoEncontrado.Stock,
+                        stockActualizado: productoEncontrado.Stock - cantidadProducto
+                    });
+                } catch (errorActualizacion) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Error al reducir el stock',
+                        detalleError: errorActualizacion.message
+                    });
+                }
+            }
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Proceso de reducción de stock en bodega completado',
+                resultados: resultadosActualizacion,
+                resumen: {
+                    total: resultadosActualizacion.length,
+                    exitosos: resultadosActualizacion.filter(r => r.status === 'success').length,
+                    errores: resultadosActualizacion.filter(r => r.status === 'error').length
+                }
+            });
+
+        } catch (errorTransaccion) {
+            await transaction.rollback();
+            console.error('Error en la transacción:', errorTransaccion);
+            res.status(500).json({
+                message: 'Error al procesar la reducción de stock',
+                error: errorTransaccion.message
+            });
+        }
+    } catch (errorConexion) {
+        console.error('Error de conexión a la base de datos:', errorConexion);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: errorConexion.message
+        });
+    }
+});
 
 
 //
@@ -1177,6 +1306,9 @@ app.post('/api/v1/cesar/actualizar-stock-externo', async (req, res) => {
         }
     }
 });
+
+
+
 
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
