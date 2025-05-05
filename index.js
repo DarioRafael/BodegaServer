@@ -430,6 +430,7 @@ app.post('/api/v1/transacciones-bodega/ingreso', async (req, res) => {
                  VALUES (@descripcion, @monto, 'ingreso', GETDATE())`
             );
 
+        // Actualizar saldo (solo ingresos)
         await pool.request()
             .input('Monto', sql.Decimal(10, 2), montoDecimal)
             .query(
