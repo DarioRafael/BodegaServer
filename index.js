@@ -266,6 +266,28 @@ app.get('/api/v1/inventarioBodega/bajoStock', async (req, res) => {
 });
 
 
+app.get('/api/v1/inventarioConCodigo', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query(`
+                SELECT
+                    M.ID,
+                    M.NombreGenerico,
+                    M.NombreMedico,
+                    M.Fabricante,
+                    M.Codigo
+                FROM medicamentosBodega M;
+            `);
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener medicamentos:', err);
+        res.status(500).send('Error del servidor al obtener medicamentos');
+    }
+});
+
+
 app.post('/api/v1/ventas-bodega', async (req, res) => {
     const { detalles } = req.body; // detalles es un array con { IDMedicamento, Stock, PrecioUnitario, PrecioSubtotal }
 
