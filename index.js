@@ -731,6 +731,8 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
     }
 });
 
+
+
 app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
     const { tablaFarmacia, productos } = req.body;
 
@@ -944,10 +946,92 @@ app.put('/api/v1/cesar/cancelar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
+// Endpoint para confirmar un pedido en la API externa
+app.put('/api/v1/cesar/confirmar-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { observacion } = req.body;
 
+    try {
+        // Hacer la petición a la API externa para confirmar el pedido
+        const apiResponse = await axios.put(`https://farmacia-api.loca.lt/api/pedidos/${pedidoId}`, {
+            estado: 'confirmado',
+            notas: observacion ? `Pedido confirmado: ${observacion}` : 'Pedido confirmado'
+        });
 
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido confirmado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'confirmado',
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al confirmar pedido en API externa:', apiError);
 
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al confirmar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+// Endpoint para marcar un pedido como completado en la API externa
+app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { observacion } = req.body;
 
+    try {
+        // Hacer la petición a la API externa para marcar el pedido como completado
+        const apiResponse = await axios.put(`https://farmacia-api.loca.lt/api/pedidos/${pedidoId}`, {
+            estado: 'completado',
+            notas: observacion ? `Pedido completado: ${observacion}` : 'Pedido completado'
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido marcado como completado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'completado',
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al completar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al completar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
 
 
 
