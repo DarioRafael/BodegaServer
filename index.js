@@ -1123,7 +1123,60 @@ app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
     }
 });
 
+// Endpoint para actualizar stock usando la API externa de César
+app.post('/api/v1/cesar/actualizar-stock-externo', async (req, res) => {
+    const { productos } = req.body;
 
+    // Validar que se envíen productos
+    if (!productos || !Array.isArray(productos) || productos.length === 0) {
+        return res.status(400).json({
+            error: 'Se requiere una lista válida de productos para actualizar'
+        });
+    }
+
+    try {
+        // Hacer la petición a la API externa para actualizar el stock
+        const apiResponse = await axios.post('https://farmacia-api.loca.lt/api/actualizar-stock', {
+            productos: productos
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+                // Puedes agregar headers adicionales si son necesarios
+                // 'Authorization': `Bearer ${process.env.FARMACIA_CESAR_TOKEN}`
+            }
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Actualización de stock procesada exitosamente en el sistema externo',
+            resultados: apiResponse.data,
+            productos_enviados: productos.length
+        });
+    } catch (apiError) {
+        console.error('Error al actualizar stock en API externa:', apiError);
+
+        // Manejar diferentes tipos de errores
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al actualizar stock en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
 
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
