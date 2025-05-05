@@ -810,19 +810,14 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
 
 
 app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
-    const { tablaFarmacia, productos } = req.body;
+    const { productos } = req.body;
+    const tablaFarmacia = 'medicamentosBodega'; // Tabla fija para el reabastecimiento
 
     // Validaciones iniciales
-    if (!tablaFarmacia || !productos || !Array.isArray(productos)) {
+    if (!productos || !Array.isArray(productos)) {
         return res.status(400).json({
-            message: 'Se requiere el nombre de la tabla de farmacia y una lista de productos'
+            message: 'Se requiere una lista de productos'
         });
-    }
-
-    // Validar que la tablaFarmacia sea segura
-    const tablaSegura = /^[a-zA-Z0-9_]+$/.test(tablaFarmacia);
-    if (!tablaSegura) {
-        return res.status(400).json({ message: 'Nombre de tabla inválido' });
     }
 
     try {
@@ -835,33 +830,45 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
             const resultadosActualizacion = [];
 
             for (const producto of productos) {
-                const { nombreProducto, cantidadProducto } = producto;
+                const { nombreProducto, cantidadProducto, codigo } = producto;
 
-                // Validar que el nombre del producto no esté duplicado
-                if (productos.findIndex(p => p.nombreProducto === nombreProducto) !== productos.indexOf(producto)) {
+                // Verificar que el producto tenga código
+                if (!codigo) {
                     resultadosActualizacion.push({
                         nombre: nombreProducto,
                         status: 'error',
-                        mensaje: 'Producto duplicado en la solicitud'
+                        mensaje: 'El producto no tiene código especificado'
                     });
                     continue;
                 }
 
-                // Buscar el producto con una búsqueda más flexible
+                // Validar que el código del producto no esté duplicado en la solicitud
+                if (productos.findIndex(p => p.codigo === codigo) !== productos.indexOf(producto)) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Código de producto duplicado en la solicitud'
+                    });
+                    continue;
+                }
+
+                // Buscar el producto por código en la tabla medicamentosBodega
                 const busquedaProducto = await request
-                    .input('nombreProducto', sql.NVarChar(255), nombreProducto)
+                    .input('codigoProducto', sql.NVarChar(255), codigo)
                     .query(`
-                        SELECT NombreGenerico, Stock 
-                        FROM ${tablaFarmacia} 
-                        WHERE NombreGenerico LIKE @nombreProducto
-                        OR REPLACE(LOWER(NombreGenerico), ' ', '') LIKE REPLACE(LOWER(@nombreProducto), ' ', '')
+                        SELECT ID, Codigo, NombreGenerico, NombreMedico, Fabricante, Contenido, 
+                        FormaFarmaceutica, Presentacion, UnidadesPorCaja, Stock, Precio
+                        FROM medicamentosBodega 
+                        WHERE Codigo = @codigoProducto
                     `);
 
                 if (busquedaProducto.recordset.length === 0) {
                     resultadosActualizacion.push({
                         nombre: nombreProducto,
+                        codigo: codigo,
                         status: 'error',
-                        mensaje: 'Producto no encontrado en el inventario'
+                        mensaje: 'Producto con este código no encontrado en el inventario'
                     });
                     continue;
                 }
@@ -870,23 +877,32 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
 
                 try {
                     await request
-                        .input('nombreGenerico', sql.NVarChar(255), productoEncontrado.NombreGenerico)
+                        .input('codigoProducto', sql.NVarChar(255), codigo)
                         .input('cantidadProducto', sql.Int, cantidadProducto)
                         .query(`
-                            UPDATE ${tablaFarmacia}
+                            UPDATE medicamentosBodega
                             SET Stock = Stock + @cantidadProducto
-                            WHERE NombreGenerico = @nombreGenerico
+                            WHERE Codigo = @codigoProducto
                         `);
 
                     resultadosActualizacion.push({
-                        nombre: nombreProducto,
+                        id: productoEncontrado.ID,
+                        nombre: productoEncontrado.NombreGenerico,
+                        nombreMedico: productoEncontrado.NombreMedico,
+                        codigo: productoEncontrado.Codigo,
+                        fabricante: productoEncontrado.Fabricante,
+                        contenido: productoEncontrado.Contenido,
+                        formaFarmaceutica: productoEncontrado.FormaFarmaceutica,
+                        presentacion: productoEncontrado.Presentacion,
+                        unidadesPorCaja: productoEncontrado.UnidadesPorCaja,
                         status: 'success',
                         stockAnterior: productoEncontrado.Stock,
-                        stockActualizado: productoEncontrado.Stock - cantidadProducto
+                        stockActualizado: productoEncontrado.Stock + cantidadProducto
                     });
                 } catch (errorActualizacion) {
                     resultadosActualizacion.push({
                         nombre: nombreProducto,
+                        codigo: codigo,
                         status: 'error',
                         mensaje: 'Error al actualizar el stock',
                         detalleError: errorActualizacion.message
@@ -923,8 +939,6 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
         });
     }
 });
-
-
 
 
 
