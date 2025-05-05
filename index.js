@@ -230,7 +230,7 @@ app.get('/api/v1/inventarioBodega', async (req, res) => {
         console.error('Error al obtener medicamentos:', err);
         res.status(500).send('Error del servidor al obtener medicamentos');
     }
-});
+});//
 
 app.get('/api/v1/inventarioBodega/bajoStock', async (req, res) => {
     try {
