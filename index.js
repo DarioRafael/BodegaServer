@@ -850,96 +850,8 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
 
 
 
-app.post('/api/v1/farmacias/cancelar-pedido', async (req, res) => {
-    const {
-        pedido_id,
-        motivo
-    } = req.body;
 
-    // Validación de campos obligatorios
-    if (!pedido_id) {
-        return res.status(400).json({
-            message: 'Se requiere el ID del pedido'
-        });
-    }
 
-    // Validar que tenga motivo
-    if (!motivo) {
-        return res.status(400).json({
-            message: 'Se requiere especificar un motivo para cancelar el pedido'
-        });
-    }
-
-    try {
-        const pool = await sql.connect(config);
-
-        // Verificar si el pedido existe
-        const pedidoResult = await pool.request()
-            .input('id', sql.Int, pedido_id)
-            .query('SELECT * FROM pedidos WHERE id = @id');
-
-        if (pedidoResult.recordset.length === 0) {
-            return res.status(404).json({ message: 'Pedido no encontrado' });
-        }
-
-        const pedido = pedidoResult.recordset[0];
-
-        // Verificar que el pedido esté en un estado que permita la cancelación
-        if (pedido.estado === 'cancelado') {
-            return res.status(400).json({ message: 'Este pedido ya fue cancelado anteriormente' });
-        }
-
-        if (pedido.estado === 'completado') {
-            return res.status(400).json({ message: 'No se puede cancelar un pedido que ya fue completado' });
-        }
-
-        // Iniciar transacción
-        const transaction = new sql.Transaction(pool);
-        await transaction.begin();
-
-        try {
-            const request = new sql.Request(transaction);
-
-            // Actualizar el pedido a estado cancelado con sintaxis MySQL
-            await request
-                .input('id', sql.Int, pedido_id)
-                .input('estado', sql.NVarChar(20), 'cancelado')
-                .input('motivo', sql.NVarChar(sql.MAX), `Cancelado por farmacia: ${motivo}`)
-                .query(`
-                    UPDATE pedidos
-                    SET estado = @estado,
-                        fecha_actualizacion = NOW(),
-                        notas = CASE
-                                    WHEN notas IS NULL OR notas = '' THEN @motivo
-                                    ELSE CONCAT(notas, '; ', @motivo)
-                            END
-                    WHERE id = @id;
-                `);
-
-            await transaction.commit();
-
-            res.status(200).json({
-                message: 'Pedido cancelado exitosamente',
-                pedido_id,
-                estado: 'cancelado',
-                motivo
-            });
-        } catch (err) {
-            await transaction.rollback();
-            console.error('Error al cancelar el pedido:', err);
-            res.status(500).json({
-                message: 'Error al cancelar el pedido',
-                error: err.message
-            });
-        }
-    } catch (err) {
-        console.error('Error en la conexión:', err);
-        res.status(500).json({
-            message: 'Error de conexión a la base de datos',
-            error: err.message
-        });
-    }
-});
 
 
 
@@ -982,7 +894,56 @@ app.get('/api/v1/farmacia-cesar/pedidos', async (req, res) => {
 });
 
 
+app.put('/api/v1/cesar/cancelar-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { motivo } = req.body;
 
+    // Validación de campos obligatorios
+    if (!motivo) {
+        return res.status(400).json({
+            error: 'Se requiere especificar un motivo para cancelar el pedido'
+        });
+    }
+
+    try {
+        // Hacer la petición a la API externa para cancelar el pedido
+        const apiResponse = await axios.put(`https://farmacia-api.loca.lt/api/pedidos/${pedidoId}`, {
+            estado: 'cancelado',
+            notas: `Cancelado: ${motivo}`
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido cancelado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'cancelado',
+            motivo: motivo,
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al cancelar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al cancelar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
 
 
 
