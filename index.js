@@ -211,6 +211,7 @@ app.get('/api/v1/inventarioBodega', async (req, res) => {
             .query(`
                 SELECT
                     M.ID,
+                    M.Codigo,
                     M.NombreGenerico,
                     M.NombreMedico,
                     M.Fabricante,
@@ -545,7 +546,7 @@ app.get('/api/v1/movimientosGet', async (req, res) => {
 
 
 
-// Pedidos
+// CINNAMORROL MARIO Y YO
 
 // Endpoint POST específico para cancelar pedidos desde la bodega
 app.post('/api/v1/bodega/cancelar-pedido', async (req, res) => {
@@ -926,6 +927,7 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
 
 
 
+//JUANCARLOS Y GAEL
 app.get('/api/v1/farmacia-cesar/pedidos', async (req, res) => {
     try {
         // Obtener datos de la API original
@@ -962,8 +964,6 @@ app.get('/api/v1/farmacia-cesar/pedidos', async (req, res) => {
         });
     }
 });
-
-
 app.put('/api/v1/cesar/cancelar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { motivo } = req.body;
