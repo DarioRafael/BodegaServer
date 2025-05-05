@@ -211,7 +211,6 @@ app.get('/api/v1/inventarioBodega', async (req, res) => {
             .query(`
                 SELECT
                     M.ID,
-                    M.Codigo,
                     M.NombreGenerico,
                     M.NombreMedico,
                     M.Fabricante,
@@ -274,10 +273,18 @@ app.get('/api/v1/inventarioConCodigo', async (req, res) => {
             .query(`
                 SELECT
                     M.ID,
+                    M.Codigo,
                     M.NombreGenerico,
                     M.NombreMedico,
                     M.Fabricante,
-                    M.Codigo
+                    M.Contenido,
+                    M.FormaFarmaceutica,
+                    FORMAT(M.FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion,
+                    M.Presentacion,
+                    FORMAT(M.FechaCaducidad, 'yyyy-MM-dd') AS FechaCaducidad,
+                    M.UnidadesPorCaja,
+                    M.Stock,
+                    M.Precio
                 FROM medicamentosBodega M;
             `);
 
