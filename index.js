@@ -889,7 +889,7 @@ for (const producto of productos) {
             detalleError: errorActualizacion.message
         });
     }
-}
+}//PRUEBA
 
 
 
