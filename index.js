@@ -809,87 +809,133 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
 
 
 
-for (const producto of productos) {
-    const { nombreProducto, cantidadProducto, codigo } = producto;
+app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
+    const { productos } = req.body;
+    const tablaFarmacia = 'medicamentosBodega';
 
-    if (!codigo) {
-        resultadosActualizacion.push({
-            nombre: nombreProducto,
-            status: 'error',
-            mensaje: 'El producto no tiene código especificado'
+    if (!productos || !Array.isArray(productos)) {
+        return res.status(400).json({
+            message: 'Se requiere una lista de productos'
         });
-        continue;
     }
-
-    // Validar duplicado
-    if (productos.findIndex(p => p.codigo === codigo) !== productos.indexOf(producto)) {
-        resultadosActualizacion.push({
-            nombre: nombreProducto,
-            codigo: codigo,
-            status: 'error',
-            mensaje: 'Código de producto duplicado en la solicitud'
-        });
-        continue;
-    }
-
-    // 🔄 Crear nuevo request en cada iteración
-    const requestBusqueda = new sql.Request(transaction);
-    const busquedaProducto = await requestBusqueda
-        .input('codigoProducto', sql.NVarChar(255), codigo)
-        .query(`
-            SELECT ID, Codigo, NombreGenerico, NombreMedico, Fabricante, Contenido, 
-            FormaFarmaceutica, Presentacion, UnidadesPorCaja, Stock, Precio
-            FROM medicamentosBodega 
-            WHERE Codigo = @codigoProducto
-        `);
-
-    if (busquedaProducto.recordset.length === 0) {
-        resultadosActualizacion.push({
-            nombre: nombreProducto,
-            codigo: codigo,
-            status: 'error',
-            mensaje: 'Producto con este código no encontrado en el inventario'
-        });
-        continue;
-    }
-
-    const productoEncontrado = busquedaProducto.recordset[0];
 
     try {
-        const requestUpdate = new sql.Request(transaction);
-        await requestUpdate
-            .input('codigoProducto', sql.NVarChar(255), codigo)
-            .input('cantidadProducto', sql.Int, cantidadProducto)
-            .query(`
-                UPDATE medicamentosBodega
-                SET Stock = Stock + @cantidadProducto
-                WHERE Codigo = @codigoProducto
-            `);
+        const pool = await sql.connect(config);
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
 
-        resultadosActualizacion.push({
-            id: productoEncontrado.ID,
-            nombre: productoEncontrado.NombreGenerico,
-            nombreMedico: productoEncontrado.NombreMedico,
-            codigo: productoEncontrado.Codigo,
-            fabricante: productoEncontrado.Fabricante,
-            contenido: productoEncontrado.Contenido,
-            formaFarmaceutica: productoEncontrado.FormaFarmaceutica,
-            presentacion: productoEncontrado.Presentacion,
-            unidadesPorCaja: productoEncontrado.UnidadesPorCaja,
-            status: 'success',
-            stockAnterior: productoEncontrado.Stock,
-            stockActualizado: productoEncontrado.Stock + cantidadProducto
-        });
-    } catch (errorActualizacion) {
-        resultadosActualizacion.push({
-            nombre: nombreProducto,
-            codigo: codigo,
-            status: 'error',
-            mensaje: 'Error al actualizar el stock',
-            detalleError: errorActualizacion.message
+        try {
+            const resultadosActualizacion = [];
+
+            for (const producto of productos) {
+                const { nombreProducto, cantidadProducto, codigo } = producto;
+
+                if (!codigo) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        status: 'error',
+                        mensaje: 'El producto no tiene código especificado'
+                    });
+                    continue;
+                }
+
+                if (productos.findIndex(p => p.codigo === codigo) !== productos.indexOf(producto)) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Código de producto duplicado en la solicitud'
+                    });
+                    continue;
+                }
+
+                const requestBusqueda = new sql.Request(transaction);
+                const busquedaProducto = await requestBusqueda
+                    .input('codigoProducto', sql.NVarChar(255), codigo)
+                    .query(`
+                        SELECT ID, Codigo, NombreGenerico, NombreMedico, Fabricante, Contenido, 
+                        FormaFarmaceutica, Presentacion, UnidadesPorCaja, Stock, Precio
+                        FROM medicamentosBodega 
+                        WHERE Codigo = @codigoProducto
+                    `);
+
+                if (busquedaProducto.recordset.length === 0) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Producto con este código no encontrado en el inventario'
+                    });
+                    continue;
+                }
+
+                const productoEncontrado = busquedaProducto.recordset[0];
+
+                try {
+                    const requestUpdate = new sql.Request(transaction);
+                    await requestUpdate
+                        .input('codigoProducto', sql.NVarChar(255), codigo)
+                        .input('cantidadProducto', sql.Int, cantidadProducto)
+                        .query(`
+                            UPDATE medicamentosBodega
+                            SET Stock = Stock + @cantidadProducto
+                            WHERE Codigo = @codigoProducto
+                        `);
+
+                    resultadosActualizacion.push({
+                        id: productoEncontrado.ID,
+                        nombre: productoEncontrado.NombreGenerico,
+                        nombreMedico: productoEncontrado.NombreMedico,
+                        codigo: productoEncontrado.Codigo,
+                        fabricante: productoEncontrado.Fabricante,
+                        contenido: productoEncontrado.Contenido,
+                        formaFarmaceutica: productoEncontrado.FormaFarmaceutica,
+                        presentacion: productoEncontrado.Presentacion,
+                        unidadesPorCaja: productoEncontrado.UnidadesPorCaja,
+                        status: 'success',
+                        stockAnterior: productoEncontrado.Stock,
+                        stockActualizado: productoEncontrado.Stock + cantidadProducto
+                    });
+                } catch (errorActualizacion) {
+                    resultadosActualizacion.push({
+                        nombre: nombreProducto,
+                        codigo: codigo,
+                        status: 'error',
+                        mensaje: 'Error al actualizar el stock',
+                        detalleError: errorActualizacion.message
+                    });
+                }
+            }
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Proceso de actualización de stock completado',
+                tabla_farmacia: tablaFarmacia,
+                resultados: resultadosActualizacion,
+                resumen: {
+                    total: resultadosActualizacion.length,
+                    exitosos: resultadosActualizacion.filter(r => r.status === 'success').length,
+                    errores: resultadosActualizacion.filter(r => r.status === 'error').length
+                }
+            });
+
+        } catch (errorTransaccion) {
+            await transaction.rollback();
+            console.error('Error en la transacción:', errorTransaccion);
+            res.status(500).json({
+                message: 'Error al procesar la actualización de stock',
+                error: errorTransaccion.message
+            });
+        }
+    } catch (errorConexion) {
+        console.error('Error de conexión a la base de datos:', errorConexion);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: errorConexion.message
         });
     }
-}//PRUEBA
+});
 
 
 
