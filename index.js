@@ -407,6 +407,52 @@ app.get('/api/v1/saldo-bodega', async (req, res) => {
     }
 });
 
+app.post('/api/v1/transacciones-bodega/ingreso', async (req, res) => {
+    const { descripcion, monto } = req.body;
+
+    // Validación de los datos de entrada
+    if (!descripcion || !monto || isNaN(parseFloat(monto)) || parseFloat(monto) <= 0) {
+        return res.status(400).json({
+            mensaje: 'Debe proporcionar una descripción y un monto válido mayor que cero'
+        });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+        const montoDecimal = parseFloat(monto);
+
+        // Insertar la transacción como ingreso
+        await pool.request()
+            .input('descripcion', sql.VarChar(255), descripcion)
+            .input('monto', sql.Decimal(10, 2), montoDecimal)
+            .query(
+                `INSERT INTO MovimientosBodega (descripcion, monto, tipo, fecha)
+                 VALUES (@descripcion, @monto, 'ingreso', GETDATE())`
+            );
+
+        // Actualizar saldo (solo ingresos)
+        await pool.request()
+            .input('Monto', sql.Decimal(10, 2), montoDecimal)
+            .query(
+                `UPDATE SaldoBodega
+                 SET saldo = saldo + @Monto, ingresos = ingresos + @Monto
+                 WHERE id = 1`
+            );
+
+        res.status(201).json({
+            mensaje: 'Ingreso registrado correctamente',
+            monto: montoDecimal,
+            descripcion
+        });
+    } catch (err) {
+        console.error('Error al registrar ingreso:', err);
+        res.status(500).json({
+            mensaje: 'Error del servidor al registrar ingreso',
+            error: err.message
+        });
+    }
+});
+
 app.post('/api/v1/transacciones-bodega', async (req, res) => {
     const { descripcion, monto, tipo } = req.body;
 
