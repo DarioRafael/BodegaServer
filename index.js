@@ -1312,7 +1312,7 @@ app.get('/api/v1/cesar/medicamentos', async (req, res) => {
 
 
 //DELE
-app.get('/api/v1/farmacia-cesar/pedidos', async (req, res) => {
+app.get('/api/v1/farmacia-dele/pedidos', async (req, res) => {
     try {
         // Obtener datos de la API original
         const response = await axios.get('https://farmaciadele.loca.lt/api/pedidos', {
@@ -1349,7 +1349,7 @@ app.get('/api/v1/farmacia-cesar/pedidos', async (req, res) => {
     }
 });
 
-app.put('/api/v1/cesar/cancelar-pedido-externo/:id', async (req, res) => {
+app.put('/api/v1/dele/cancelar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { motivo } = req.body;
 
@@ -1401,7 +1401,7 @@ app.put('/api/v1/cesar/cancelar-pedido-externo/:id', async (req, res) => {
 });
 
 // Endpoint para confirmar un pedido en la API externa
-app.put('/api/v1/cesar/confirmar-pedido-externo/:id', async (req, res) => {
+app.put('/api/v1/dele/confirmar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { observacion } = req.body;
 
@@ -1445,7 +1445,7 @@ app.put('/api/v1/cesar/confirmar-pedido-externo/:id', async (req, res) => {
 });
 //
 // Endpoint para marcar un pedido como completado en la API externa
-app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
+app.put('/api/v1/dele/completar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { observacion } = req.body;
 
@@ -1489,7 +1489,7 @@ app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
 });
 
 // Endpoint para actualizar stock usando la API externa de César
-app.post('/api/v1/cesar/actualizar-stock-externo', async (req, res) => {
+app.post('/api/v1/dele/actualizar-stock-externo', async (req, res) => {
     const { productos } = req.body;
 
     // Validar que se envíen productos
@@ -1543,7 +1543,7 @@ app.post('/api/v1/cesar/actualizar-stock-externo', async (req, res) => {
     }
 });
 
-app.get('/api/v1/cesar/medicamentos', async (req, res) => {
+app.get('/api/v1/dele/medicamentos', async (req, res) => {
     try {
         const response = await axios.get('https://farmaciadele.loca.lt/api/medicamentosPED');
         res.json(response.data);
