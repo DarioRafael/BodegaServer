@@ -1443,7 +1443,7 @@ app.put('/api/v1/cesar/confirmar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-
+//
 // Endpoint para marcar un pedido como completado en la API externa
 app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
