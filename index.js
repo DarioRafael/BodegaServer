@@ -1315,7 +1315,7 @@ app.get('/api/v1/cesar/medicamentos', async (req, res) => {
 app.get('/api/v1/farmacia-dele/pedidos', async (req, res) => {
     try {
         // Obtener datos de la API original
-        const response = await axios.get('https://farmaciadele.loca.lt/api/pedidos', {
+        const response = await axios.get('https://farmacia-dele.loca.lt/api/pedidos', {
             // Aquí puedes añadir headers de autenticación si son necesarios
             headers: {
                 // 'Authorization': `Bearer ${process.env.FARMACIA_CESAR_TOKEN}`
@@ -1362,7 +1362,7 @@ app.put('/api/v1/dele/cancelar-pedido-externo/:id', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para cancelar el pedido
-        const apiResponse = await axios.put(`https://farmaciadele.loca.lt/api/pedidos/${pedidoId}`, {
+        const apiResponse = await axios.put(`https://farmacia-dele.loca.lt/api/pedidos/${pedidoId}`, {
             estado: 'cancelado',
             notas: `Cancelado: ${motivo}`
         });
@@ -1407,7 +1407,7 @@ app.put('/api/v1/dele/confirmar-pedido-externo/:id', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para confirmar el pedido
-        const apiResponse = await axios.put(`https://farmaciadele.loca.lt/api/pedidos/${pedidoId}`, {
+        const apiResponse = await axios.put(`https://farmacia-dele.loca.lt/api/pedidos/${pedidoId}`, {
             estado: 'confirmado',
             notas: observacion ? `Pedido confirmado: ${observacion}` : 'Pedido confirmado'
         });
@@ -1451,7 +1451,7 @@ app.put('/api/v1/dele/completar-pedido-externo/:id', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para marcar el pedido como completado
-        const apiResponse = await axios.put(`https://farmaciadele.loca.lt/api/pedidos/${pedidoId}`, {
+        const apiResponse = await axios.put(`https://farmacia-dele.loca.lt/api/pedidos/${pedidoId}`, {
             estado: 'completado',
             notas: observacion ? `Pedido completado: ${observacion}` : 'Pedido completado'
         });
@@ -1501,7 +1501,7 @@ app.post('/api/v1/dele/actualizar-stock-externo', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para actualizar el stock
-        const apiResponse = await axios.post('https://farmaciadele.loca.lt/api/actualizar-stock', {
+        const apiResponse = await axios.post('https://farmacia-dele.loca.lt/api/actualizar-stock', {
             productos: productos
         }, {
             headers: {
@@ -1545,7 +1545,7 @@ app.post('/api/v1/dele/actualizar-stock-externo', async (req, res) => {
 
 app.get('/api/v1/dele/medicamentos', async (req, res) => {
     try {
-        const response = await axios.get('https://farmaciadele.loca.lt/api/medicamentosPED');
+        const response = await axios.get('https://farmacia-dele.loca.lt/api/medicamentosPED');
         res.json(response.data);
     } catch (error) {
         console.error('Error al obtener los datos:', error.message);
