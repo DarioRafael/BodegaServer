@@ -1595,6 +1595,15 @@ app.get('/api/v1/farmacia-manuelito/pedidos', async (req, res) => {
         });
     }//
 });
+app.get('/api/v1/manuel/medicamentos', async (req, res) => {
+    try {
+        const response = await axios.get('https://ladybird-regular-blatantly.ngrok-free.app/api/pedidos/medicamentos-bodega');
+        res.json(response.data);
+    } catch (error) {
+        console.error('Error al obtener los datos:', error.message);
+        res.status(500).json({ error: 'Error al obtener los datos de la API externa' });
+    }
+});
 
 
 module.exports = app;
