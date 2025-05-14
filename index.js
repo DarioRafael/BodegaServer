@@ -1794,6 +1794,50 @@ app.put('/api/v1/manuel/completar-pedido-externo/:id', async (req, res) => {
     }
 });
 
+
+app.put('/api/v1/manuel/pagado-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { observacion } = req.body;
+
+    try {
+        // Hacer la petición a la API externa para marcar el pedido como completado
+        const apiResponse = await axios.put(`https://ladybird-regular-blatantly.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'pagado',
+            notas: observacion ? `Pedido completado: ${observacion}` : 'Pedido completado'
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido marcado como completado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'pagado',
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al completar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al completar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+
 // Endpoint para actualizar stock usando la API externa de César
 app.post('/api/v1/manuel/actualizar-stock-externo', async (req, res) => {
     const { productos } = req.body;
