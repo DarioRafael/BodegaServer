@@ -1807,7 +1807,7 @@ app.post('/api/v1/manuel/actualizar-stock-externo', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para actualizar el stock
-        const apiResponse = await axios.post('https://ladybird-regular-blatantly.ngrok-free.app/api/actualizar-stock', {
+        const apiResponse = await axios.post('https://ladybird-regular-blatantly.ngrok-free.app/api/pedidos/actualizar-stock', {
             productos: productos
         }, {
             headers: {
