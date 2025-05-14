@@ -1593,7 +1593,7 @@ app.get('/api/v1/farmacia-manuelito/pedidos', async (req, res) => {
             message: error.message,
             details: error.response ? error.response.data : null
         });
-    }
+    }//
 });
 
 
