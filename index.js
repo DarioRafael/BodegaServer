@@ -1604,6 +1604,56 @@ app.get('/api/v1/manuel/medicamentos', async (req, res) => {
         res.status(500).json({ error: 'Error al obtener los datos de la API externa' });
     }
 });
+app.put('/api/v1/manuel/espera-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { motivo } = req.body;
+
+    // Validación de campos obligatorios
+    if (!motivo) {
+        return res.status(400).json({
+            error: 'Se requiere especificar un motivo para cancelar el pedido'
+        });
+    }
+
+    try {
+        // Hacer la petición a la API externa para cancelar el pedido
+        const apiResponse = await axios.put(`https://ladybird-regular-blatantly.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'cancelado',
+            notas: `Cancelado: ${motivo}`
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido cancelado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'en_espera',
+            motivo: motivo,
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al cancelar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al cancelar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
 
 app.put('/api/v1/manuel/cancelar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
@@ -1757,7 +1807,7 @@ app.post('/api/v1/manuel/actualizar-stock-externo', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para actualizar el stock
-        const apiResponse = await axios.post('https://farmacia-dele.loca.lt/api/actualizar-stock', {
+        const apiResponse = await axios.post('https://ladybird-regular-blatantly.ngrok-free.app/api/actualizar-stock', {
             productos: productos
         }, {
             headers: {
