@@ -1663,7 +1663,7 @@ app.put('/api/v1/manuel/confirmar-pedido-externo/:id', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para confirmar el pedido
-        const apiResponse = await axios.put(`https://farmacia-dele.loca.lt/api/pedidos/${pedidoId}`, {
+        const apiResponse = await axios.put(`https://ladybird-regular-blatantly.ngrok-free.app/api/pedidos/${pedidoId}`, {
             estado: 'confirmado',
             notas: observacion ? `Pedido confirmado: ${observacion}` : 'Pedido confirmado'
         });
@@ -1707,7 +1707,7 @@ app.put('/api/v1/manuel/completar-pedido-externo/:id', async (req, res) => {
 
     try {
         // Hacer la petición a la API externa para marcar el pedido como completado
-        const apiResponse = await axios.put(`https://farmacia-dele.loca.lt/api/pedidos/${pedidoId}`, {
+        const apiResponse = await axios.put(`https://ladybird-regular-blatantly.ngrok-free.app/api/pedidos/${pedidoId}`, {
             estado: 'completado',
             notas: observacion ? `Pedido completado: ${observacion}` : 'Pedido completado'
         });
