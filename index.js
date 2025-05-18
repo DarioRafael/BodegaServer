@@ -622,13 +622,63 @@ app.get('/pedidos-en-espera', async (req, res) => {
                 promises.push(
                     axios.get(farmacia.url)
                         .then(response => {
-                            // Asumiendo que cada API devuelve un array de pedidos con un campo 'estado'
-                            const pedidos = response.data;
+                            // Obtener los datos de la respuesta
+                            let pedidos = response.data;
 
-                            // Filtrar pedidos en espera
-                            const pedidosEnEspera = Array.isArray(pedidos)
-                                ? pedidos.filter(pedido => pedido.estado === 'en_espera')
-                                : [];
+                            // Revisar la estructura completa de la respuesta para depuración
+                            console.log(`Respuesta completa de ${farmacia.name}:`, JSON.stringify(pedidos));
+
+                            // Verificar si los datos están dentro de alguna propiedad anidada
+                            // Algunas APIs podrían devolver { data: [...] } o { pedidos: [...] }
+                            if (pedidos && typeof pedidos === 'object' && !Array.isArray(pedidos)) {
+                                // Revisar si los pedidos están en una propiedad 'data' o 'pedidos'
+                                if (pedidos.data && Array.isArray(pedidos.data)) {
+                                    pedidos = pedidos.data;
+                                } else if (pedidos.pedidos && Array.isArray(pedidos.pedidos)) {
+                                    pedidos = pedidos.pedidos;
+                                }
+                            }
+
+                            // Verificar si los datos son un array
+                            if (!Array.isArray(pedidos)) {
+                                console.error(`Los datos de ${farmacia.name} no son un array o no se encontraron:`, pedidos);
+                                return [];
+                            }
+
+                            console.log(`Total de pedidos encontrados para ${farmacia.name}: ${pedidos.length}`);
+
+                            // Ver todos los estados disponibles para depuración
+                            const estados = [...new Set(pedidos.map(p => p.estado))];
+                            console.log(`Estados encontrados en ${farmacia.name}:`, estados);
+
+                            // Filtrar pedidos en espera (con manejo de casos)
+                            const pedidosEnEspera = pedidos.filter(pedido => {
+                                // Verificar si existe la propiedad estado
+                                if (!pedido || typeof pedido.estado === 'undefined') {
+                                    console.log('Pedido sin propiedad estado:', pedido);
+                                    return false;
+                                }
+
+                                // Convertir a minúsculas y comparar
+                                const estado = String(pedido.estado).toLowerCase();
+                                const esEnEspera = estado === 'en_espera' ||
+                                    estado === 'en espera' ||
+                                    estado === 'pendiente' ||
+                                    estado === 'nuevo';
+
+                                if (esEnEspera) {
+                                    console.log(`Pedido en espera encontrado en ${farmacia.name}:`, pedido);
+                                }
+
+                                return esEnEspera;
+                            });
+
+                            console.log(`Pedidos en espera de ${farmacia.name}: ${pedidosEnEspera.length}`);
+
+                            // Si hay pedidos en espera, mostrar el primero para verificar estructura
+                            if (pedidosEnEspera.length > 0) {
+                                console.log(`Ejemplo de pedido en espera de ${farmacia.name}:`, pedidosEnEspera[0]);
+                            }
 
                             // Actualizar contador
                             totalPedidosEnEspera += pedidosEnEspera.length;
@@ -658,6 +708,8 @@ app.get('/pedidos-en-espera', async (req, res) => {
         // Esperar a que todas las peticiones terminen
         await Promise.all(promises);
 
+        console.log("Resultado final de pedidos en espera:", totalPedidosEnEspera);
+
         // Devolver el resultado
         res.json({
             total_pedidos_en_espera: totalPedidosEnEspera,
@@ -672,7 +724,6 @@ app.get('/pedidos-en-espera', async (req, res) => {
         });
     }
 });
-
 
 
 // CINNAMORROL MARIO Y YO
