@@ -548,8 +548,22 @@ app.get('/api/v1/movimientosGet', async (req, res) => {
     }
 });
 
+app.get('/api/v1/transacciones/count', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
 
+        // Query to get all movements from MovimientosBodega
+        const result = await pool.request()
+            .query('SELECT COUNT(*) FROM MovimientosBodega ORDER BY fecha DESC');
 
+        res.status(200).json({
+            movimientos: result.recordset
+        });
+    } catch (err) {
+        console.error('Error al obtener movimientos:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al obtener los movimientos' });
+    }
+});
 
 
 
