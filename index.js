@@ -564,6 +564,20 @@ app.get('/api/v1/transacciones/count', async (req, res) => {
         res.status(500).json({ mensaje: 'Error del servidor al obtener los movimientos' });
     }
 });
+app.get('/api/v1/medicamentos/count', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query('SELECT COUNT(*) FROM medicamentosBodega');
+
+        res.status(200).json({
+            movimientos: result.recordset
+        });
+    } catch (err) {
+        console.error('Error al obtener movimientos:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al obtener los medicamentos' });
+    }
+});
 
 
 
