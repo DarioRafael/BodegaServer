@@ -580,6 +580,100 @@ app.get('/api/v1/medicamentos/count', async (req, res) => {
 });
 
 
+app.get('/pedidos-en-espera', async (req, res) => {
+    try {
+        // Inicializar contador
+        let totalPedidosEnEspera = 0;
+        let detallesPorFarmacia = {};
+
+        // Definición de farmacias directamente en la función
+        const farmacias = {
+            "farmacia-cinnamon": {
+                name: "Farmacia Cinnamon",
+                url: "https://farmaciaserver-ashen.vercel.app/api/v1/pedidosGet",
+                active: true
+            },
+            "farmacia-cesar": {
+                name: "Farmacia Cesar",
+                url: "https://bodega-server.vercel.app/api/v1/farmacia-cesar/pedidos",
+                active: true
+            },
+            "farmacia-dele": {
+                name: "Farmacia Dele",
+                url: "https://bodega-server.vercel.app/api/v1/farmacia-dele/pedidos",
+                active: true
+            },
+            "farmacia-manuel": {
+                name: "Farmacia Manuel",
+                url: "https://bodega-server.vercel.app/api/v1/farmacia-manuelito/pedidos",
+                active: true
+            }
+        };
+
+        // Array para almacenar las promesas de todas las peticiones
+        const promises = [];
+
+        // Crear una promesa para cada farmacia activa
+        Object.keys(farmacias).forEach(key => {
+            const farmacia = farmacias[key];
+
+            if (farmacia.active) {
+                // Añadir la promesa al array
+                promises.push(
+                    axios.get(farmacia.url)
+                        .then(response => {
+                            // Asumiendo que cada API devuelve un array de pedidos con un campo 'estado'
+                            const pedidos = response.data;
+
+                            // Filtrar pedidos en espera
+                            const pedidosEnEspera = Array.isArray(pedidos)
+                                ? pedidos.filter(pedido => pedido.estado === 'en_espera')
+                                : [];
+
+                            // Actualizar contador
+                            totalPedidosEnEspera += pedidosEnEspera.length;
+
+                            // Guardar detalles por farmacia
+                            detallesPorFarmacia[farmacia.name] = {
+                                total: pedidosEnEspera.length,
+                                pedidos: pedidosEnEspera
+                            };
+
+                            return pedidosEnEspera;
+                        })
+                        .catch(error => {
+                            console.error(`Error al obtener datos de ${farmacia.name}:`, error.message);
+                            // En caso de error, continuamos con las otras farmacias
+                            detallesPorFarmacia[farmacia.name] = {
+                                error: `No se pudo conectar: ${error.message}`,
+                                total: 0,
+                                pedidos: []
+                            };
+                            return [];
+                        })
+                );
+            }
+        });
+
+        // Esperar a que todas las peticiones terminen
+        await Promise.all(promises);
+
+        // Devolver el resultado
+        res.json({
+            total_pedidos_en_espera: totalPedidosEnEspera,
+            detalles: detallesPorFarmacia
+        });
+
+    } catch (error) {
+        console.error('Error general:', error.message);
+        res.status(500).json({
+            error: 'Error al procesar la solicitud',
+            message: error.message
+        });
+    }
+});
+
+
 
 // CINNAMORROL MARIO Y YO
 
