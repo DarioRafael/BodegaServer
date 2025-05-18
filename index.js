@@ -554,7 +554,7 @@ app.get('/api/v1/transacciones/count', async (req, res) => {
 
         // Query to get all movements from MovimientosBodega
         const result = await pool.request()
-            .query('SELECT COUNT(*) FROM MovimientosBodega ORDER BY fecha DESC');
+            .query('SELECT COUNT(*) FROM MovimientosBodega');
 
         res.status(200).json({
             movimientos: result.recordset
