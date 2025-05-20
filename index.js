@@ -420,6 +420,27 @@ app.get('/api/v1/medicamentos-bodega', async (req, res) => {
     }
 });
 
+app.get('/api/v1/muestra-bodega', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request().query(`
+            SELECT
+                M.ID,
+                M.Codigo,
+                M.NombreGenerico,
+                M.NombreMedico,
+                M.UnidadesPorCaja,
+                M.Stock,
+            FROM medicamentosBodega M;
+        `);
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener medicamentos:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al obtener medicamentos' });
+    }
+});
+
 app.get('/api/v1/saldo-bodega', async (req, res) => {
     try {
         const pool = await sql.connect(config);
