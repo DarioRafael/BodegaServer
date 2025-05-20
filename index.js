@@ -430,7 +430,7 @@ app.get('/api/v1/muestra-bodega', async (req, res) => {
                 M.NombreGenerico,
                 M.NombreMedico,
                 M.UnidadesPorCaja,
-                M.Stock,
+                M.Stock
             FROM medicamentosBodega M;
         `);
 
