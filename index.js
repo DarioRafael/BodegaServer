@@ -2440,6 +2440,8 @@ app.get('/api/v1/farmacia-mauro/pedidos', async (req, res) => {
         });
     }//
 });
+
+// MAURO
 app.get('/api/v1/mauro/medicamentos', async (req, res) => {
     try {
         const response = await axios.get('https://careful-coherent-chigger.ngrok-free.app/api/medicamentosPED');
@@ -2728,6 +2730,297 @@ app.post('/api/v1/mauro/actualizar-stock-externo', async (req, res) => {
         }
     }
 });
+
+// DARKY
+app.get('/api/v1/darky/medicamentos', async (req, res) => {
+    try {
+        const response = await axios.get('https://snipe-divine-glowworm.ngrok-free.app/api/medicamentosPED');
+        res.json(response.data);
+    } catch (error) {
+        console.error('Error al obtener los datos:', error.message);
+        res.status(500).json({ error: 'Error al obtener los datos de la API externa' });
+    }
+});
+app.put('/api/v1/darky/espera-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { motivo } = req.body;
+
+    // Validación de campos obligatorios
+    if (!motivo) {
+        return res.status(400).json({
+            error: 'Se requiere especificar un motivo para cancelar el pedido'
+        });
+    }
+
+    try {
+        // Hacer la petición a la API externa para cancelar el pedido
+        const apiResponse = await axios.put(`https://snipe-divine-glowworm.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'cancelado',
+            notas: `Cancelado: ${motivo}`
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido cancelado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'en_espera',
+            motivo: motivo,
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al cancelar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al cancelar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+app.put('/api/v1/darky/cancelar-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { motivo } = req.body;
+
+    // Validación de campos obligatorios
+    if (!motivo) {
+        return res.status(400).json({
+            error: 'Se requiere especificar un motivo para cancelar el pedido'
+        });
+    }
+
+    try {
+        // Hacer la petición a la API externa para cancelar el pedido
+        const apiResponse = await axios.put(`https://snipe-divine-glowworm.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'cancelado',
+            notas: `Cancelado: ${motivo}`
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido cancelado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'cancelado',
+            motivo: motivo,
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al cancelar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al cancelar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+app.put('/api/v1/darky/confirmar-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { observacion } = req.body;
+
+    try {
+        // Hacer la petición a la API externa para confirmar el pedido
+        const apiResponse = await axios.put(`https://snipe-divine-glowworm.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'confirmado',
+            notas: observacion ? `Pedido confirmado: ${observacion}` : 'Pedido confirmado'
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido confirmado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'confirmado',
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al confirmar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al confirmar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+app.put('/api/v1/darky/completar-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { observacion } = req.body;
+
+    try {
+        // Hacer la petición a la API externa para marcar el pedido como completado
+        const apiResponse = await axios.put(`https://snipe-divine-glowworm.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'completado',
+            notas: observacion ? `Pedido completado: ${observacion}` : 'Pedido completado'
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido marcado como completado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'completado',
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al completar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al completar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+app.put('/api/v1/darky/pagado-pedido-externo/:id', async (req, res) => {
+    const pedidoId = req.params.id;
+    const { observacion } = req.body;
+
+    try {
+        // Hacer la petición a la API externa para marcar el pedido como completado
+        const apiResponse = await axios.put(`https://snipe-divine-glowworm.ngrok-free.app/api/pedidos/${pedidoId}`, {
+            estado: 'pagado',
+            notas: observacion ? `Pedido completado: ${observacion}` : 'Pedido completado'
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Pedido marcado como completado exitosamente en el sistema externo',
+            pedido_id: pedidoId,
+            estado: 'pagado',
+            respuesta_externa: apiResponse.data
+        });
+    } catch (apiError) {
+        console.error('Error al completar pedido en API externa:', apiError);
+
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al completar pedido en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+app.post('/api/v1/darky/actualizar-stock-externo', async (req, res) => {
+    const { productos } = req.body;
+
+    // Validar que se envíen productos
+    if (!productos || !Array.isArray(productos) || productos.length === 0) {
+        return res.status(400).json({
+            error: 'Se requiere una lista válida de productos para actualizar'
+        });
+    }
+
+    try {
+        // Hacer la petición a la API externa para actualizar el stock
+        const apiResponse = await axios.post('https://snipe-divine-glowworm.ngrok-free.app/api/actualizar-stock', {
+            productos: productos
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+                // Puedes agregar headers adicionales si son necesarios
+                // 'Authorization': `Bearer ${process.env.FARMACIA_CESAR_TOKEN}`
+            }
+        });
+
+        // Devolvemos la respuesta de la API externa
+        res.status(200).json({
+            mensaje: 'Actualización de stock procesada exitosamente en el sistema externo',
+            resultados: apiResponse.data,
+            productos_enviados: productos.length
+        });
+    } catch (apiError) {
+        console.error('Error al actualizar stock en API externa:', apiError);
+
+        // Manejar diferentes tipos de errores
+        if (apiError.response) {
+            // La API respondió con un código de error
+            res.status(apiError.response.status).json({
+                error: 'Error al actualizar stock en API externa',
+                detalles: apiError.response.data
+            });
+        } else if (apiError.request) {
+            // No se recibió respuesta
+            res.status(503).json({
+                error: 'No se recibió respuesta de la API externa',
+                detalles: 'Verifica que el servicio esté disponible'
+            });
+        } else {
+            // Error en la configuración de la solicitud
+            res.status(500).json({
+                error: 'Error al configurar la solicitud a la API externa',
+                detalles: apiError.message
+            });
+        }
+    }
+});
+
 
 
 
