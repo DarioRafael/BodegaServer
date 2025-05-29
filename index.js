@@ -2731,7 +2731,7 @@ app.post('/api/v1/mauro/actualizar-stock-externo', async (req, res) => {
     }
 });
 
-// DARKY
+// DARKY,
 app.get('/api/v1/darky/medicamentos', async (req, res) => {
     try {
         const response = await axios.get('https://snipe-divine-glowworm.ngrok-free.app/api/medicamentosPED');
