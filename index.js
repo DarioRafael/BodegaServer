@@ -2403,7 +2403,7 @@ app.post('/api/v1/limas/actualizar-stock-externo', async (req, res) => {
     }
 });
 
-
+// MAURO
 app.get('/api/v1/farmacia-mauro/pedidos', async (req, res) => {
     try {
         // Obtener datos de la API original
@@ -2440,8 +2440,6 @@ app.get('/api/v1/farmacia-mauro/pedidos', async (req, res) => {
         });
     }//
 });
-
-// MAURO
 app.get('/api/v1/mauro/medicamentos', async (req, res) => {
     try {
         const response = await axios.get('https://careful-coherent-chigger.ngrok-free.app/api/medicamentosPED');
@@ -2732,6 +2730,42 @@ app.post('/api/v1/mauro/actualizar-stock-externo', async (req, res) => {
 });
 
 // DARKY,
+app.get('/api/v1/farmacia-darky/pedidos', async (req, res) => {
+    try {
+        // Obtener datos de la API original
+        const response = await axios.get('https://snipe-divine-glowworm.ngrok-free.app/api/pedidos', {
+            // Aquí puedes añadir headers de autenticación si son necesarios
+            headers: {
+                // 'Authorization': `Bearer ${process.env.FARMACIA_CESAR_TOKEN}`
+            }
+        });
+
+        // Si la respuesta es exitosa, transformar los datos al formato esperado
+        if (response.status === 200) {
+            // Transformar el array en un objeto con propiedad 'pedidos'
+            const transformedData = {
+                pedidos: response.data
+            };
+
+            res.status(200).json(transformedData);
+        } else {
+            // Si hay algún error, devolverlo
+            res.status(response.status).json({
+                error: 'Error al obtener datos de Farmacia Cesar',
+                details: response.statusText
+            });
+        }
+    } catch (error) {
+        console.error('Error al procesar la solicitud:', error);
+
+        // Devolver un error detallado
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            message: error.message,
+            details: error.response ? error.response.data : null
+        });
+    }//
+});
 app.get('/api/v1/darky/medicamentos', async (req, res) => {
     try {
         const response = await axios.get('https://snipe-divine-glowworm.ngrok-free.app/api/medicamentosPED');
