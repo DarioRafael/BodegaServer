@@ -748,8 +748,6 @@ app.get('/pedidos-en-espera', async (req, res) => {
 
 
 // CINNAMORROL MARIO Y YO
-
-// Endpoint POST específico para cancelar pedidos desde la bodega
 app.post('/api/v1/bodega/cancelar-pedido', async (req, res) => {
     const {
         pedido_id,
@@ -840,7 +838,6 @@ app.post('/api/v1/bodega/cancelar-pedido', async (req, res) => {
         });
     }
 });
-
 app.post('/api/v1/bodega/confirmar-pedido', async (req, res) => {
     const { pedido_id } = req.body;
 
@@ -924,8 +921,6 @@ app.post('/api/v1/bodega/confirmar-pedido', async (req, res) => {
         });
     }
 });
-
-// Endpoint para marcar un pedido como completado
 app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
     const { pedido_id } = req.body;
 
@@ -1000,9 +995,6 @@ app.post('/api/v1/bodega/marcar-pedido-completado', async (req, res) => {
         });
     }
 });
-
-
-
 app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
     const { productos } = req.body;
     const tablaFarmacia = 'Medicamentos';
@@ -1134,7 +1126,6 @@ app.post('/api/v1/bodega/actualizar-stock', async (req, res) => {
         });
     }
 });
-
 app.post('/api/v1/bodega/reducir-stock', async (req, res) => {
     const { productos } = req.body;
 
@@ -1354,7 +1345,6 @@ app.put('/api/v1/cesar/cancelar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-// Endpoint para confirmar un pedido en la API externa
 app.put('/api/v1/cesar/confirmar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { observacion } = req.body;
@@ -1397,7 +1387,6 @@ app.put('/api/v1/cesar/confirmar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-// Endpoint para marcar un pedido como completado en la API externa
 app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { observacion } = req.body;
@@ -1440,7 +1429,6 @@ app.put('/api/v1/cesar/completar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-// Endpoint para actualizar stock usando la API externa de César
 app.post('/api/v1/cesar/actualizar-stock-externo', async (req, res) => {
     const { productos } = req.body;
 
@@ -1542,7 +1530,6 @@ app.get('/api/v1/farmacia-dele/pedidos', async (req, res) => {
         });
     }
 });
-
 app.put('/api/v1/dele/cancelar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { motivo } = req.body;
@@ -1593,8 +1580,6 @@ app.put('/api/v1/dele/cancelar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-
-// Endpoint para confirmar un pedido en la API externa
 app.put('/api/v1/dele/confirmar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { observacion } = req.body;
@@ -1637,8 +1622,6 @@ app.put('/api/v1/dele/confirmar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-//
-// Endpoint para marcar un pedido como completado en la API externa
 app.put('/api/v1/dele/completar-pedido-externo/:id', async (req, res) => {
     const pedidoId = req.params.id;
     const { observacion } = req.body;
@@ -1681,8 +1664,6 @@ app.put('/api/v1/dele/completar-pedido-externo/:id', async (req, res) => {
         }
     }
 });
-
-// Endpoint para actualizar stock usando la API externa de César
 app.post('/api/v1/dele/actualizar-stock-externo', async (req, res) => {
     const { productos } = req.body;
 
@@ -1736,7 +1717,6 @@ app.post('/api/v1/dele/actualizar-stock-externo', async (req, res) => {
         }
     }
 });
-
 app.get('/api/v1/dele/medicamentos', async (req, res) => {
     try {
         const response = await axios.get('https://farmacia-dele.loca.lt/api/medicamentosPED');
